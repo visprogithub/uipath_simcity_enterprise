@@ -1,0 +1,15 @@
+{
+  "name": "maestro-city",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/frontend", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd apps/frontend && npm run dev",
+    "dev:backend": "cd apps/backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "install:all": "npm install && cd apps/backend && pip install -r requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
