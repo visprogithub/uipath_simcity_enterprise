@@ -11,6 +11,21 @@ Built for the **UiPath AgentHack** hackathon.
 
 ---
 
+## Judging Criteria Alignment
+
+| Criterion | Maestro City Feature | Where to See It |
+|-----------|---------------------|-----------------|
+| UiPath Agent Builder | 5 agents defined with full system prompts, tools, and triggers | Agent Builder panel in Maestro UI; [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md) |
+| API Workflows | 6 enterprise system endpoints (EHR, pharmacy, staffing, infrastructure, outage notify, escalation notify) | `/api/enterprise/*` |
+| Maestro Orchestration | Phase-aware agent coordination routed through UiPath Maestro | Main city view + Agent Builder panel |
+| Human Approval Step | VERITAS compliance agent gates high-risk actions and triggers approval modal | Click any building in crisis phase; check Maestro action items |
+| Dynamic Rerouting | ARIA reroutes workflows to backup_infra with visual orange flash on city grid | City view during degrading phase |
+| Long-running Workflows | Stuck workflow badge + stuck counter visible on city HUD | Top-left badge during queued phase |
+| Coding Agents Bonus | Claude (`claude-sonnet-4-6`) generates context-aware XAML dynamically | "Coding Agent" button in toolbar; [docs/CODING_AGENT.md](./CODING_AGENT.md) |
+| After-Action Report | Enterprise PDF/JSON report generated post-scenario with numbered recommendations | Reports → After-Action tab; `GET /api/report/after-action` |
+
+---
+
 ## Enterprise Deliverables
 
 A simulation alone doesn't justify enterprise investment. After every scenario run, Maestro
@@ -71,6 +86,9 @@ flow structure, and decision points — configured specifically for healthcare o
 - **Agentic Orchestration**: Five specialised agents (ARIA, SENTINEL, VERITAS, ECHO, APEX)
   operate autonomously at configurable autonomy levels (0 = fully manual, 4 = fully
   autonomous). Their decisions are routed through UiPath Orchestrator as real automation jobs.
+  Each agent is configured in UiPath Agent Builder with detailed system prompts, tool schemas,
+  and trigger conditions — see [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md) for
+  the complete click-by-click setup guide.
 
 - **Human-in-the-Loop**: High-risk decisions surface as UiPath Maestro action items.
   A human approver in the Maestro UI can approve or reject them; the simulation responds
@@ -82,6 +100,11 @@ flow structure, and decision points — configured specifically for healthcare o
 
 - **Graceful Degradation**: The simulation runs fully without UiPath credentials. Plug in
   your credentials at any time to switch from simulation-only mode to live automation.
+
+- **Coding Agent**: The toolbar "Coding Agent" button invokes Claude (`claude-sonnet-4-6`)
+  to generate context-aware UiPath XAML workflows based on the live simulation state.
+  A workflow generated during a crisis phase differs structurally from one generated during
+  stable operations — see [docs/CODING_AGENT.md](./CODING_AGENT.md) for details.
 
 - **Actionable Outputs**: Every scenario produces four enterprise deliverables (above) that
   cross back into real operational decisions — the simulation is the means, not the end.
