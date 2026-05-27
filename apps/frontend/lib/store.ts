@@ -53,6 +53,25 @@ export interface GameStore {
   setActiveReportTab: (tab: 'after-action' | 'runbook' | 'calibration' | 'templates') => void;
   fetchReports: () => Promise<void>;
   resetScenario: () => Promise<void>;
+
+  // Agent Builder state
+  agentBuilderOpen: boolean;
+  setAgentBuilderOpen: (v: boolean) => void;
+  agentBuilderData: any;
+  fetchAgentBuilder: () => Promise<void>;
+
+  // CodeGen Modal state
+  codeGenOpen: boolean;
+  setCodeGenOpen: (v: boolean) => void;
+  codeGenResult: any;
+  codeGenLoading: boolean;
+
+  // Approvals state
+  approvalsOpen: boolean;
+  setApprovalsOpen: (v: boolean) => void;
+  pendingApprovals: any[];
+  fetchApprovals: () => Promise<void>;
+  approvalCount: number;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -74,6 +93,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   processTemplates: null,
   reportsLoading: false,
   reportsError: null,
+
+  // Agent Builder initial state
+  agentBuilderOpen: false,
+  agentBuilderData: null,
+
+  // CodeGen Modal initial state
+  codeGenOpen: false,
+  codeGenResult: null,
+  codeGenLoading: false,
+
+  // Approvals initial state
+  approvalsOpen: false,
+  pendingApprovals: [],
+  approvalCount: 0,
 
   setSimState: (state) =>
     set((prev) => {
@@ -155,6 +188,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       await fetch('/api/scenario/reset', { method: 'POST' });
     } catch (err) {
       console.error('[store] resetScenario failed:', err);
+    }
+  },
+
+  setAgentBuilderOpen: (v) => set({ agentBuilderOpen: v }),
+
+  fetchAgentBuilder: async () => {
+    try {
+      const res = await fetch('/api/agent-builder/agents');
+      if (!res.ok) throw new Error('Failed to fetch agent builder data');
+      const data = await res.json();
+      set({ agentBuilderData: data });
+    } catch (err) {
+      console.error('[store] fetchAgentBuilder failed:', err);
+    }
+  },
+
+  setCodeGenOpen: (v) => set({ codeGenOpen: v }),
+
+  setApprovalsOpen: (v) => set({ approvalsOpen: v }),
+
+  fetchApprovals: async () => {
+    try {
+      const res = await fetch('/api/approvals/pending');
+      if (!res.ok) throw new Error('Failed to fetch approvals');
+      const data = await res.json();
+      const approvals = Array.isArray(data) ? data : (data.approvals ?? []);
+      set({ pendingApprovals: approvals, approvalCount: approvals.length });
+    } catch (err) {
+      console.error('[store] fetchApprovals failed:', err);
     }
   },
 }));
