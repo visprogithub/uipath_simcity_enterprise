@@ -447,6 +447,26 @@ async def notify_outage(notification: OutageNotification) -> Dict[str, Any]:
             )
             actions_triggered.append("Simulation event emitted")
 
+    # Fire Integration Service API Trigger so the UiPath outage-notification workflow runs
+    import os
+    trigger_slug = os.getenv("UIPATH_TRIGGER_OUTAGE_SLUG", "outage-notification")
+    uipath_result = await engine.uipath_client.trigger_api_workflow(
+        trigger_slug,
+        {
+            "notificationId": notification_id,
+            "systemId": notification.system_id,
+            "severity": notification.severity,
+            "matchedBuildingId": matched_building_id,
+            "affectedServices": notification.affected_services,
+            "message": notification.message,
+        },
+    )
+    if uipath_result:
+        actions_triggered.append(
+            f"UiPath API Trigger '{trigger_slug}' fired"
+            + (" (simulated)" if uipath_result.get("simulated") else "")
+        )
+
     logger.info(
         f"Outage notification received: {notification.system_id} "
         f"severity={notification.severity} -> building={matched_building_id}"
@@ -457,6 +477,7 @@ async def notify_outage(notification: OutageNotification) -> Dict[str, Any]:
         "acknowledged": True,
         "matchedBuildingId": matched_building_id,
         "actions_triggered": actions_triggered,
+        "uipathTriggerResult": uipath_result,
         "timestamp": time.time(),
     }
 
@@ -495,6 +516,20 @@ async def notify_escalation(notification: EscalationNotification) -> Dict[str, A
         },
     )
 
+    # Fire Integration Service API Trigger for escalation
+    import os
+    trigger_slug = os.getenv("UIPATH_TRIGGER_ESCALATION_SLUG", "escalation-notify")
+    uipath_result = await engine.uipath_client.trigger_api_workflow(
+        trigger_slug,
+        {
+            "escalationId": notification.escalation_id,
+            "priority": notification.priority,
+            "assignedTo": notification.assigned_to,
+            "message": notification.message,
+            "alertId": alert.id,
+        },
+    )
+
     logger.info(
         f"Escalation received: {notification.escalation_id} "
         f"priority={notification.priority} assigned_to={notification.assigned_to}"
@@ -504,5 +539,6 @@ async def notify_escalation(notification: EscalationNotification) -> Dict[str, A
         "received": True,
         "alertId": alert.id,
         "severity": severity.value,
+        "uipathTriggerResult": uipath_result,
         "timestamp": time.time(),
     }

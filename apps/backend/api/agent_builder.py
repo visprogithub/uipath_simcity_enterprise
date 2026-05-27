@@ -112,9 +112,16 @@ _AGENTS: List[Dict[str, Any]] = [
         ],
         "autonomyLevel": 2,
         "orchestratedBy": "Maestro City Orchestrator",
+        "orchestratorProcessName": "ARIA_Operations_Coordinator",
+        "orchestratorInvocationEnvVar": "UIPATH_ARIA_PROCESS_NAME",
         "uipathProcesses": ["Incident_Escalation", "Crisis_Response", "Staffing_Optimization"],
         "worksAlongside": ["SENTINEL", "VERITAS", "ECHO", "APEX"],
         "escalatesTo": "APEX",
+        "invocationNote": (
+            "Published to Orchestrator as process 'ARIA_Operations_Coordinator'. "
+            "Triggered via POST /odata/Jobs/UiPath.Server.Configuration.OData.StartJobs "
+            "with InputArguments: in_AgentId, in_Context (JSON), in_Phase, in_SimulationTick."
+        ),
     },
     {
         "id": "sentinel",
@@ -209,9 +216,16 @@ _AGENTS: List[Dict[str, Any]] = [
         ],
         "autonomyLevel": 2,
         "orchestratedBy": "Maestro City Orchestrator",
+        "orchestratorProcessName": "SENTINEL_Incident_Response",
+        "orchestratorInvocationEnvVar": "UIPATH_SENTINEL_PROCESS_NAME",
         "uipathProcesses": ["Crisis_Response", "Incident_Escalation", "System_Recovery"],
         "worksAlongside": ["ARIA", "VERITAS"],
         "escalatesTo": "APEX",
+        "invocationNote": (
+            "Published to Orchestrator as process 'SENTINEL_Incident_Response'. "
+            "Input arguments: in_AgentId, in_Context (JSON with incident details), "
+            "in_Phase, in_SimulationTick."
+        ),
     },
     {
         "id": "veritas",
@@ -313,10 +327,17 @@ _AGENTS: List[Dict[str, Any]] = [
         ],
         "autonomyLevel": 1,
         "orchestratedBy": "Maestro City Orchestrator",
+        "orchestratorProcessName": "VERITAS_Compliance",
+        "orchestratorInvocationEnvVar": "UIPATH_VERITAS_PROCESS_NAME",
         "uipathProcesses": ["Trust_Recovery", "Approval_Chain"],
         "worksAlongside": ["ARIA", "SENTINEL", "APEX"],
         "escalatesTo": "APEX",
         "humanInLoopRequired": True,
+        "invocationNote": (
+            "Published to Orchestrator as process 'VERITAS_Compliance'. "
+            "When VERITAS creates an Action Center approval item, the action item ID "
+            "is returned in out_ActionItemId and tracked in Maestro City's pending approvals."
+        ),
     },
     {
         "id": "echo",
@@ -416,9 +437,16 @@ _AGENTS: List[Dict[str, Any]] = [
         ],
         "autonomyLevel": 2,
         "orchestratedBy": "Maestro City Orchestrator",
+        "orchestratorProcessName": "ECHO_Communications",
+        "orchestratorInvocationEnvVar": "UIPATH_ECHO_PROCESS_NAME",
         "uipathProcesses": ["Incident_Escalation", "Trust_Recovery"],
         "worksAlongside": ["ARIA", "SENTINEL", "VERITAS", "APEX"],
         "escalatesTo": "APEX",
+        "invocationNote": (
+            "Published to Orchestrator as process 'ECHO_Communications'. "
+            "Input arguments include in_Recipients (JSON array), in_AlertSeverity, "
+            "in_Channel, and in_MessageTemplate."
+        ),
     },
     {
         "id": "apex",
@@ -524,10 +552,17 @@ _AGENTS: List[Dict[str, Any]] = [
         ],
         "autonomyLevel": 1,
         "orchestratedBy": "Maestro City Orchestrator",
+        "orchestratorProcessName": "APEX_Executive_Strategy",
+        "orchestratorInvocationEnvVar": "UIPATH_APEX_PROCESS_NAME",
         "uipathProcesses": ["Crisis_Response", "Trust_Recovery", "Approval_Chain"],
         "worksAlongside": ["ARIA", "SENTINEL", "VERITAS", "ECHO"],
         "escalatesTo": "Human Executive",
         "humanInLoopRequired": True,
+        "invocationNote": (
+            "Published to Orchestrator as process 'APEX_Executive_Strategy'. "
+            "APEX is invoked during crisis declaration events. Input arguments: "
+            "in_CrisisLevel (1-3), in_Context (JSON), in_PhaseHistory (JSON array)."
+        ),
     },
 ]
 

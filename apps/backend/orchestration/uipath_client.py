@@ -22,6 +22,17 @@ logger = logging.getLogger(__name__)
 TOKEN_ENDPOINT = "https://cloud.uipath.com/identity_/connect/token"
 TOKEN_BUFFER_SECONDS = 60  # refresh token 60s before expiry
 
+# Agent Builder: each Maestro City agent is deployed as an Orchestrator process.
+# These names must match the Release names in your UiPath Orchestrator folder.
+# Override via environment variables e.g. UIPATH_ARIA_PROCESS_NAME=Custom_ARIA_v2
+_DEFAULT_AGENT_PROCESSES: Dict[str, str] = {
+    "aria": "ARIA_Operations_Coordinator",
+    "sentinel": "SENTINEL_Incident_Response",
+    "veritas": "VERITAS_Compliance",
+    "echo": "ECHO_Communications",
+    "apex": "APEX_Executive_Strategy",
+}
+
 
 class UiPathClient:
     def __init__(self) -> None:
@@ -39,6 +50,15 @@ class UiPathClient:
         self._pending_approvals: Dict[str, UiPathApproval] = {}
         self._job_callbacks: Dict[str, List[Callable]] = {}
         self._configured: bool = self._check_configured()
+
+        # Resolve agent process names from env vars (allow override per-agent)
+        self._agent_processes: Dict[str, str] = {
+            agent_id: os.getenv(
+                f"UIPATH_{agent_id.upper()}_PROCESS_NAME",
+                default_name,
+            )
+            for agent_id, default_name in _DEFAULT_AGENT_PROCESSES.items()
+        }
 
         if not self._configured:
             logger.warning(
@@ -388,6 +408,81 @@ class UiPathClient:
             if action_id in self._pending_approvals:
                 del self._pending_approvals[action_id]
                 logger.info(f"Approval {action_id} resolved via webhook")
+
+    async def invoke_agent(
+        self,
+        agent_id: str,
+        context: dict,
+        folder_id: Optional[str] = None,
+    ) -> Optional[UiPathJob]:
+        """
+        Invoke a UiPath Agent Builder agent by its agent ID.
+
+        Agent Builder agents are deployed as Orchestrator Processes. This method
+        resolves the agent_id to its configured process name and calls StartJobs.
+
+        agent_id: one of "aria", "sentinel", "veritas", "echo", "apex"
+        context: dict passed as InputArguments to the process
+        """
+        process_name = self._agent_processes.get(agent_id.lower())
+        if not process_name:
+            logger.warning(f"Unknown agent_id for invocation: {agent_id}")
+            return None
+
+        input_args = {
+            "in_AgentId": agent_id,
+            "in_Context": json.dumps(context),
+            "in_SimulationTick": context.get("tick", 0),
+            "in_Phase": context.get("phase", "unknown"),
+        }
+        logger.info(f"Invoking Agent Builder agent: {agent_id} -> process: {process_name}")
+        return await self.start_job(process_name, input_args, folder_id)
+
+    async def trigger_api_workflow(
+        self,
+        trigger_slug: str,
+        payload: dict,
+        folder_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Trigger an Integration Service API Workflow via an Orchestrator API Trigger.
+
+        API Triggers are created in Orchestrator under Triggers > API Triggers.
+        The trigger_slug is the unique path segment you assigned when creating the trigger
+        (e.g. "ehr-availability-check" → POST /api/triggers/ehr-availability-check).
+
+        Docs: https://docs.uipath.com/orchestrator/latest/user-guide/managing-api-triggers
+        """
+        if not self._configured:
+            logger.info(f"Simulated API trigger: {trigger_slug}")
+            return {"jobId": f"sim-{uuid.uuid4().hex[:8]}", "status": "Pending", "simulated": True}
+
+        token = await self._get_token()
+        if not token:
+            return None
+
+        try:
+            url = self._build_orchestrator_url(f"api/triggers/{trigger_slug}")
+            effective_folder = folder_id or self.folder_id
+            headers = self._build_headers(token)
+            if effective_folder:
+                headers["X-UIPATH-OrganizationUnitId"] = str(effective_folder)
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(url, headers=headers, json={"data": payload})
+                response.raise_for_status()
+                result = response.json()
+                logger.info(f"API trigger fired: {trigger_slug} -> {result}")
+                return result
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"API trigger {trigger_slug} failed (HTTP {e.response.status_code}): "
+                f"{e.response.text[:200]}"
+            )
+            return None
+        except Exception as e:
+            logger.error(f"API trigger error for {trigger_slug}: {e}")
+            return None
 
     def cleanup_jobs(self) -> None:
         """Remove completed jobs older than 5 minutes."""
