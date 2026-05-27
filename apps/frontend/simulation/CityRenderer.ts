@@ -62,6 +62,7 @@ export class CityRenderer {
   private connectionGraphics: Map<string, PIXI.Graphics> = new Map();
   private workflowSprites: Map<string, PIXI.Container> = new Map();
   private agentSprites: Map<string, PIXI.Container> = new Map();
+  private reroutedLinesGraphics: PIXI.Graphics | null = null;
 
   private buildingClickCallback: ((id: string) => void) | null = null;
   private agentClickCallback: ((id: string) => void) | null = null;
@@ -71,6 +72,10 @@ export class CityRenderer {
 
   // Workflow packet positions (interpolated)
   private workflowPositions: Map<string, { x: number; y: number; angle: number }> = new Map();
+
+  // Rerouted flash tracking: wfId -> { tick: number, flashCount: number }
+  private reroutedFlash: Map<string, { startTime: number }> = new Map();
+  private prevWorkflowStatuses: Map<string, string> = new Map();
 
   // Agent drone positions (interpolated towards target)
   private agentPositions: Map<string, { x: number; y: number }> = new Map();
@@ -106,6 +111,10 @@ export class CityRenderer {
 
   init(): void {
     this.drawGrid();
+
+    // Create rerouted lines graphics (drawn below workflow sprites)
+    this.reroutedLinesGraphics = new PIXI.Graphics();
+    this.workflowLayer.addChildAt(this.reroutedLinesGraphics, 0);
 
     // Add a ticker for animations
     this.app.ticker.add((delta: number) => {
@@ -523,11 +532,21 @@ export class CityRenderer {
       const dst = buildingMap.get(wf.destId);
       if (!src || !dst) continue;
 
+      // Detect new rerouted transition -> start flash
+      const prevStatus = this.prevWorkflowStatuses.get(wf.id);
+      if (wf.status === 'rerouted' && prevStatus !== 'rerouted') {
+        this.reroutedFlash.set(wf.id, { startTime: this.animationTime });
+      }
+      this.prevWorkflowStatuses.set(wf.id, wf.status);
+
       let container = this.workflowSprites.get(wf.id);
       if (!container) {
-        container = this.createWorkflowSprite(wf.type);
+        container = this.createWorkflowSprite(wf.type, wf.status === 'rerouted');
         this.workflowSprites.set(wf.id, container);
         this.workflowLayer.addChild(container);
+      } else if (wf.status === 'rerouted') {
+        // Recolor existing sprite to orange
+        this.recolorWorkflowSpriteOrange(container);
       }
 
       this.positionWorkflowSprite(container, wf, src, dst);
@@ -539,14 +558,49 @@ export class CityRenderer {
         this.workflowLayer.removeChild(container);
         container.destroy({ children: true });
         this.workflowSprites.delete(id);
+        this.reroutedFlash.delete(id);
+        this.prevWorkflowStatuses.delete(id);
       }
+    }
+
+    // Draw orange dashed lines for rerouted workflows
+    this.drawReroutedLines(activeWorkflows, buildingMap);
+  }
+
+  private drawReroutedLines(workflows: Workflow[], buildingMap: Map<string, Building>): void {
+    if (!this.reroutedLinesGraphics) return;
+    this.reroutedLinesGraphics.clear();
+
+    for (const wf of workflows) {
+      if (wf.status !== 'rerouted') continue;
+      const src = buildingMap.get(wf.sourceId);
+      const dst = buildingMap.get(wf.destId);
+      if (!src || !dst) continue;
+
+      const srcCenter = this.getBuildingCenter(src);
+      const dstCenter = this.getBuildingCenter(dst);
+
+      this.drawDashedLine(
+        this.reroutedLinesGraphics,
+        srcCenter.x, srcCenter.y,
+        dstCenter.x, dstCenter.y,
+        0xFF6600,
+        0.6
+      );
     }
   }
 
-  private createWorkflowSprite(type: string): PIXI.Container {
+  private recolorWorkflowSpriteOrange(container: PIXI.Container): void {
+    // Mark container with rerouted flag to skip re-creation churn
+    (container as any).__rerouted = true;
+  }
+
+  private createWorkflowSprite(type: string, rerouted = false): PIXI.Container {
     const container = new PIXI.Container();
 
-    const color = WORKFLOW_COLORS[type] ?? 0xffffff;
+    // Rerouted workflows use orange
+    const color = rerouted ? 0xFF6600 : (WORKFLOW_COLORS[type] ?? 0xffffff);
+    (container as any).__rerouted = rerouted;
 
     const g = new PIXI.Graphics();
     // Outer glow
@@ -561,6 +615,18 @@ export class CityRenderer {
     g.beginFill(0xffffff, 0.5);
     g.drawCircle(-1, -1, 2);
     g.endFill();
+
+    if (rerouted) {
+      // Draw a small orange arrow indicator to distinguish rerouted packets
+      const arrow = new PIXI.Graphics();
+      arrow.beginFill(0xFF6600, 0.9);
+      arrow.moveTo(0, -8);
+      arrow.lineTo(4, -4);
+      arrow.lineTo(-4, -4);
+      arrow.closePath();
+      arrow.endFill();
+      container.addChild(arrow);
+    }
 
     container.addChild(g);
     return container;
@@ -589,11 +655,31 @@ export class CityRenderer {
       container.x = srcCenter.x + (dstCenter.x - srcCenter.x) * progress;
       container.y = srcCenter.y + (dstCenter.y - srcCenter.y) * progress;
       container.alpha = 0.5 + 0.5 * Math.sin(this.animationTime * 6);
-    } else {
-      // Flowing or rerouted - move along the path
+    } else if (wf.status === 'rerouted') {
+      // Rerouted - move along path with orange flash effect
       container.x = srcCenter.x + (dstCenter.x - srcCenter.x) * progress;
       container.y = srcCenter.y + (dstCenter.y - srcCenter.y) * progress;
-      container.alpha = wf.status === 'rerouted' ? 0.8 : 1.0;
+
+      // Flash effect: pulse 3 times over ~1.5 seconds after reroute transition
+      const flashData = this.reroutedFlash.get(wf.id);
+      if (flashData) {
+        const elapsed = this.animationTime - flashData.startTime;
+        const flashDuration = 1.5;
+        if (elapsed < flashDuration) {
+          // 3 pulses over flashDuration seconds
+          container.alpha = 0.5 + 0.5 * Math.abs(Math.sin((elapsed / flashDuration) * Math.PI * 3));
+        } else {
+          this.reroutedFlash.delete(wf.id);
+          container.alpha = 0.85;
+        }
+      } else {
+        container.alpha = 0.85;
+      }
+    } else {
+      // Flowing - move along the path
+      container.x = srcCenter.x + (dstCenter.x - srcCenter.x) * progress;
+      container.y = srcCenter.y + (dstCenter.y - srcCenter.y) * progress;
+      container.alpha = 1.0;
     }
 
     // Scale by priority

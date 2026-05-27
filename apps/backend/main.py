@@ -11,6 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
 from api.websocket import manager, websocket_endpoint
+from api.enterprise_systems import router as enterprise_router
+from api.agent_builder import router as agent_builder_router
+from api.coding_agent import router as coding_agent_router
+from api.approvals import router as approvals_router
 from simulation.engine import engine
 
 logging.basicConfig(
@@ -60,6 +64,10 @@ app.add_middleware(
 
 # REST routes
 app.include_router(router)
+app.include_router(enterprise_router)
+app.include_router(agent_builder_router)
+app.include_router(coding_agent_router)
+app.include_router(approvals_router)
 
 
 # WebSocket endpoint

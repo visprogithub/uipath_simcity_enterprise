@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import TopBar from '@/components/TopBar';
 import CityCanvas from '@/components/city/CityCanvas';
@@ -9,14 +10,79 @@ import AlertFeed from '@/components/panels/AlertFeed';
 import ControlsPanel from '@/components/panels/ControlsPanel';
 import Timeline from '@/components/timeline/Timeline';
 import ReportsModal from '@/components/reports/ReportsModal';
+import { useGameStore } from '@/lib/store';
+
+function StuckWorkflowsBadge() {
+  const simState = useGameStore((s) => s.simState);
+  const setApprovalsOpen = useGameStore((s) => s.setApprovalsOpen);
+  const fetchApprovals = useGameStore((s) => s.fetchApprovals);
+
+  if (!simState) return null;
+
+  const stuckWorkflows = simState.workflows.filter(
+    (w) => w.status === 'queued' || w.status === 'blocked'
+  );
+
+  if (stuckWorkflows.length === 0) return null;
+
+  function handleClick() {
+    fetchApprovals();
+    setApprovalsOpen(true);
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold animate-pulse"
+      style={{
+        background: 'rgba(239,68,68,0.18)',
+        border: '1px solid rgba(239,68,68,0.45)',
+        color: '#f87171',
+      }}
+    >
+      <span>&#9888;</span>
+      {stuckWorkflows.length} workflow{stuckWorkflows.length !== 1 ? 's' : ''} stuck
+    </button>
+  );
+}
 
 export default function GamePage() {
   // Initialize WebSocket connection
   useSimulation();
 
+  const simState = useGameStore((s) => s.simState);
+  const isPaused = useGameStore((s) => s.isPaused);
+  const fetchApprovals = useGameStore((s) => s.fetchApprovals);
+  const setApprovalsOpen = useGameStore((s) => s.setApprovalsOpen);
+  const approvalsOpen = useGameStore((s) => s.approvalsOpen);
+
+  // Poll for approvals every 5 seconds when simulation is running
+  useEffect(() => {
+    if (isPaused) return;
+    fetchApprovals();
+    const id = setInterval(() => {
+      fetchApprovals();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [isPaused, fetchApprovals]);
+
+  // Auto-show approvals modal when there's an unacknowledged critical alert
+  const prevCriticalRef = useRef(false);
+  useEffect(() => {
+    if (!simState) return;
+    const hasCritical = simState.alerts.some(
+      (a) => a.severity === 'critical' && !a.acknowledged
+    );
+    if (hasCritical && !prevCriticalRef.current && !approvalsOpen) {
+      fetchApprovals();
+      setApprovalsOpen(true);
+    }
+    prevCriticalRef.current = hasCritical;
+  }, [simState, approvalsOpen, fetchApprovals, setApprovalsOpen]);
+
   return (
     <div className="flex flex-col h-screen bg-bg-base overflow-hidden">
-      {/* Top bar */}
+      {/* Top bar (includes AgentBuilderPanel, CodeGenModal, ApprovalModal) */}
       <TopBar />
       <ReportsModal />
 
@@ -36,6 +102,7 @@ export default function GamePage() {
         <main className="flex-1 relative min-w-0 bg-bg-base overflow-hidden">
           <CityCanvas className="w-full h-full" />
           <BuildingTooltip />
+          <StuckWorkflowsBadge />
         </main>
 
         {/* Right panel */}
