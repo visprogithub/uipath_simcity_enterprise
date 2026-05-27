@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.env
+.venv
+venv/
+env/
+dist/
+
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+out/
+build/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+tsconfig.tsbuildinfo
+next-env.d.ts
+node_modules/
