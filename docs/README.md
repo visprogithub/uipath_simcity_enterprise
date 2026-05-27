@@ -11,6 +11,61 @@ Built for the **UiPath AgentHack** hackathon.
 
 ---
 
+## Enterprise Deliverables
+
+A simulation alone doesn't justify enterprise investment. After every scenario run, Maestro
+City generates four **concrete, actionable artifacts** that cross back into the real world:
+
+### 1. After-Action Report (`GET /api/report/after-action`)
+A structured JSON + narrative document that answers what a post-incident review board asks:
+- Which systems failed first and why (building health timelines)
+- What interventions worked vs. backfired (per-action stability delta)
+- How much faster recovery was with automation vs. without (modeled counterfactual)
+- What percentage of recovery was automation vs. human intervention
+- Specific numbered recommendations for process improvement
+
+**Enterprise use**: Present to the board as evidence for AI autonomy investment. Replace
+the "gut feel" post-mortem with simulation-validated findings.
+
+### 2. Operational Runbook (`GET /api/report/runbook`)
+A validated, step-by-step incident response procedure in both structured JSON and Markdown,
+directly importable into PagerDuty, ServiceNow, or Confluence:
+- Trigger conditions with observed metric thresholds from the actual scenario
+- Immediate / Short-term / Recovery actions in priority order
+- Full escalation chain (Level 1 → 2 → 3) with UiPath process names
+- Recovery milestones with target vs. achieved timings
+- "SIMULATION VALIDATED" badge when recovery was achieved
+
+**Enterprise use**: This replaces the handwritten runbook in the wiki that nobody reads.
+The steps are drawn from what *actually worked* in the simulation, not from what someone
+thought would work in a planning meeting.
+
+### 3. Autonomy Calibration Certificate (`GET /api/report/autonomy-calibration`)
+A per-agent readiness assessment with evidence trail:
+- For each of the 5 agents: current level, recommended level, accuracy %, trust score
+- Evidence: correct detections, counterproductive actions, stability contribution in points
+- Overall org assessment: READY FOR EXPANDED AUTOMATION / ADEQUATE / REQUIRES OVERSIGHT
+- Specific rationale for each upgrade or downgrade recommendation
+
+**Enterprise use**: Justify to a CISO or CTO why it is safe to increase autonomy on
+incident response from Level 2 to Level 3. The certificate documents simulation-validated
+readiness with auditable evidence, not anecdote.
+
+### 4. UiPath Process Templates (`GET /api/report/process-templates`)
+Importable UiPath Studio project files (XAML + project.json) for all 5 automation processes,
+pre-configured with the correct input/output arguments as demonstrated in the simulation:
+- `Incident_Escalation`, `Approval_Chain`, `Crisis_Response`, `Emergency_Staffing`,
+  `Trust_Recovery_Protocol`
+- Each template has a scaffolded XAML workflow with correct argument definitions,
+  log message activities, and conditional branching placeholders
+- A README in each project explains where to add your organisation's real logic
+
+**Enterprise use**: Instead of starting from a blank UiPath Studio canvas, teams get a
+documented, simulation-tested process skeleton that already has the right argument names,
+flow structure, and decision points — configured specifically for healthcare operations.
+
+---
+
 ## What It Demonstrates
 
 - **Agentic Orchestration**: Five specialised agents (ARIA, SENTINEL, VERITAS, ECHO, APEX)
@@ -27,6 +82,9 @@ Built for the **UiPath AgentHack** hackathon.
 
 - **Graceful Degradation**: The simulation runs fully without UiPath credentials. Plug in
   your credentials at any time to switch from simulation-only mode to live automation.
+
+- **Actionable Outputs**: Every scenario produces four enterprise deliverables (above) that
+  cross back into real operational decisions — the simulation is the means, not the end.
 
 ---
 
