@@ -8,6 +8,7 @@ import MetricsPanel from '@/components/panels/MetricsPanel';
 import AlertFeed from '@/components/panels/AlertFeed';
 import ControlsPanel from '@/components/panels/ControlsPanel';
 import Timeline from '@/components/timeline/Timeline';
+import ReportsModal from '@/components/reports/ReportsModal';
 
 export default function GamePage() {
   // Initialize WebSocket connection
@@ -17,6 +18,7 @@ export default function GamePage() {
     <div className="flex flex-col h-screen bg-bg-base overflow-hidden">
       {/* Top bar */}
       <TopBar />
+      <ReportsModal />
 
       {/* Main content area */}
       <div className="flex flex-1 min-h-0">

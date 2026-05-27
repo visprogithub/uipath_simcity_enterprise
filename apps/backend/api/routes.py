@@ -205,3 +205,40 @@ async def _process_webhook_background(payload: dict) -> None:
         logger.info(f"Webhook processed: {result}")
     except Exception as e:
         logger.error(f"Webhook processing error: {e}", exc_info=True)
+
+
+# ─── Reporting Endpoints ──────────────────────────────────────────────────────
+
+@router.get("/api/report/after-action")
+async def get_after_action_report() -> Dict[str, Any]:
+    """Generate and return the after-action report for the current scenario."""
+    report = engine.generate_after_action_report()
+    return report
+
+
+@router.get("/api/report/runbook")
+async def get_runbook() -> Dict[str, Any]:
+    """Generate and return an operational runbook from the current scenario."""
+    runbook = engine.generate_runbook()
+    return runbook
+
+
+@router.get("/api/report/autonomy-calibration")
+async def get_autonomy_calibration() -> Dict[str, Any]:
+    """Generate autonomy calibration certificate for the current scenario."""
+    calibration = engine.generate_autonomy_calibration()
+    return calibration
+
+
+@router.get("/api/report/process-templates")
+async def get_process_templates() -> Dict[str, Any]:
+    """Get UiPath Studio process templates for all 5 automation processes."""
+    templates = engine.generate_process_templates()
+    return templates
+
+
+@router.post("/api/scenario/reset")
+async def reset_scenario() -> Dict[str, Any]:
+    """Reset the simulation to initial state for a new scenario run."""
+    engine.reset_scenario()
+    return {"success": True, "scenarioId": engine.scenario_tracker.scenario_id}

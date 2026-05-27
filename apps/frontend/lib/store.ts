@@ -6,6 +6,12 @@ import type {
   PlayerAction,
 } from '@shared/index';
 import type { ConnectionStatus } from '@/types/game';
+import type {
+  AfterActionReport,
+  Runbook,
+  CalibrationCertificate,
+  ProcessTemplate,
+} from '@/lib/reports';
 
 export interface GameStore {
   // State
@@ -31,6 +37,22 @@ export interface GameStore {
   // Will be set by the websocket client
   _sendFn: ((action: PlayerAction) => void) | null;
   _setSendFn: (fn: (action: PlayerAction) => void) => void;
+
+  // Reports state
+  reportsOpen: boolean;
+  activeReportTab: 'after-action' | 'runbook' | 'calibration' | 'templates';
+  afterActionReport: AfterActionReport | null;
+  runbook: Runbook | null;
+  calibration: CalibrationCertificate | null;
+  processTemplates: ProcessTemplate[] | null;
+  reportsLoading: boolean;
+  reportsError: string | null;
+
+  // Reports actions
+  setReportsOpen: (open: boolean) => void;
+  setActiveReportTab: (tab: 'after-action' | 'runbook' | 'calibration' | 'templates') => void;
+  fetchReports: () => Promise<void>;
+  resetScenario: () => Promise<void>;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -42,6 +64,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   connectionStatus: 'connecting',
   tickHistory: [],
   _sendFn: null,
+
+  // Reports initial state
+  reportsOpen: false,
+  activeReportTab: 'after-action',
+  afterActionReport: null,
+  runbook: null,
+  calibration: null,
+  processTemplates: null,
+  reportsLoading: false,
+  reportsError: null,
 
   setSimState: (state) =>
     set((prev) => {
@@ -83,4 +115,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   _setSendFn: (fn) => set({ _sendFn: fn }),
+
+  setReportsOpen: (open) => set({ reportsOpen: open }),
+
+  setActiveReportTab: (tab) => set({ activeReportTab: tab }),
+
+  fetchReports: async () => {
+    set({ reportsLoading: true, reportsError: null });
+    try {
+      const [aarRes, rbRes, calRes, ptRes] = await Promise.all([
+        fetch('/api/report/after-action'),
+        fetch('/api/report/runbook'),
+        fetch('/api/report/autonomy-calibration'),
+        fetch('/api/report/process-templates'),
+      ]);
+
+      if (!aarRes.ok || !rbRes.ok || !calRes.ok || !ptRes.ok) {
+        throw new Error('One or more report endpoints returned an error');
+      }
+
+      const [afterActionReport, runbook, calibration, processTemplates] = await Promise.all([
+        aarRes.json(),
+        rbRes.json(),
+        calRes.json(),
+        ptRes.json(),
+      ]);
+
+      set({ afterActionReport, runbook, calibration, processTemplates, reportsLoading: false });
+    } catch (err) {
+      set({
+        reportsLoading: false,
+        reportsError: err instanceof Error ? err.message : 'Failed to load reports',
+      });
+    }
+  },
+
+  resetScenario: async () => {
+    try {
+      await fetch('/api/scenario/reset', { method: 'POST' });
+    } catch (err) {
+      console.error('[store] resetScenario failed:', err);
+    }
+  },
 }));

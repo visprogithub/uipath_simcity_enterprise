@@ -94,6 +94,22 @@ class SimulationEngine:
         self.running: bool = False
         self._task: Optional[asyncio.Task] = None
 
+        # ─── Reporting subsystems ─────────────────────────────────────────────
+        from simulation.scenario_tracker import ScenarioTracker
+        from simulation.after_action_reporter import AfterActionReporter
+        from simulation.runbook_generator import RunbookGenerator
+        from simulation.autonomy_calibrator import AutonomyCalibrator
+        from orchestration.process_template_generator import ProcessTemplateGenerator
+
+        self.scenario_tracker = ScenarioTracker()
+        self.after_action_reporter = AfterActionReporter()
+        self.runbook_generator = RunbookGenerator()
+        self.autonomy_calibrator = AutonomyCalibrator()
+        self.template_generator = ProcessTemplateGenerator()
+
+        # Auto-start scenario tracking
+        self.scenario_tracker.start_scenario()
+
     def _init_agent_handlers(self) -> None:
         """Initialize agent handler instances."""
         from agents.operations_coordinator import OperationsCoordinator
@@ -206,7 +222,17 @@ class SimulationEngine:
         self.events = self.events[-MAX_EVENTS:]
         self.alerts = [a for a in self.alerts if not a.acknowledged][-MAX_ALERTS:]
 
-        # 13. Push state to all WebSocket subscribers
+        # 13. Record tick snapshot for reporting (before push so reports have current data)
+        self.scenario_tracker.record_tick(
+            self.tick_count,
+            self.buildings,
+            self.metrics,
+            self.phase,
+            self.workflow_engine.workflows,
+            self.agents,
+        )
+
+        # 14. Push state to all WebSocket subscribers
         state = self._build_state()
         for cb in list(self._state_callbacks):
             try:
@@ -298,18 +324,67 @@ class SimulationEngine:
     def apply_action(self, action: PlayerAction) -> Dict[str, Any]:
         """Dispatch player action to appropriate handler."""
         try:
+            # Capture metrics snapshot before action for intervention tracking
+            metrics_before = self.metrics
+
             if isinstance(action, TriggerOutageAction):
-                return self._handle_trigger_outage(action)
+                result = self._handle_trigger_outage(action)
+                if result.get("success"):
+                    self.scenario_tracker.record_intervention(
+                        action_type="trigger_outage",
+                        description=f"Player triggered {action.severity} outage on building {action.buildingId}",
+                        source="player",
+                        current_metrics=metrics_before,
+                        target_building_id=action.buildingId,
+                    )
+                return result
             elif isinstance(action, SetStaffingAction):
-                return self._handle_set_staffing(action)
+                result = self._handle_set_staffing(action)
+                if result.get("success"):
+                    self.scenario_tracker.record_intervention(
+                        action_type="set_staffing",
+                        description=f"Player set staffing level to {action.level} for building {action.buildingId}",
+                        source="player",
+                        current_metrics=metrics_before,
+                        target_building_id=action.buildingId,
+                    )
+                return result
             elif isinstance(action, SetAutonomyAction):
-                return self._handle_set_autonomy(action)
+                result = self._handle_set_autonomy(action)
+                if result.get("success"):
+                    target_id = action.agentId or "all"
+                    self.scenario_tracker.record_intervention(
+                        action_type="set_autonomy",
+                        description=f"Player set autonomy level to {action.level} for agent {target_id}",
+                        source="player",
+                        current_metrics=metrics_before,
+                        target_agent_id=action.agentId,
+                    )
+                return result
             elif isinstance(action, ActivateFailoverAction):
-                return self._handle_activate_failover(action)
+                result = self._handle_activate_failover(action)
+                if result.get("success"):
+                    self.scenario_tracker.record_intervention(
+                        action_type="activate_failover",
+                        description=f"Player activated failover for building {action.targetBuildingId}",
+                        source="player",
+                        current_metrics=metrics_before,
+                        target_building_id=action.targetBuildingId,
+                    )
+                return result
             elif isinstance(action, AcknowledgeAlertAction):
                 return self._handle_acknowledge_alert(action)
             elif isinstance(action, RestoreBuildingAction):
-                return self._handle_restore_building(action)
+                result = self._handle_restore_building(action)
+                if result.get("success"):
+                    self.scenario_tracker.record_intervention(
+                        action_type="restore_building",
+                        description=f"Player initiated restoration of building {action.buildingId}",
+                        source="player",
+                        current_metrics=metrics_before,
+                        target_building_id=action.buildingId,
+                    )
+                return result
             elif isinstance(action, TriggerUiPathAction):
                 return self._handle_trigger_uipath(action)
             else:
@@ -564,6 +639,42 @@ class SimulationEngine:
     def get_current_state(self) -> SimulationState:
         """Return current state snapshot synchronously."""
         return self._build_state()
+
+    # ─── Report Generation ────────────────────────────────────────────────────
+
+    def generate_after_action_report(self) -> dict:
+        """Generate and return after-action report for the current scenario."""
+        buildings_config = [{"id": b.id, "name": b.name} for b in self.buildings]
+        return self.after_action_reporter.generate(self.scenario_tracker, buildings_config)
+
+    def generate_runbook(self) -> dict:
+        """Generate operational runbook from current scenario data."""
+        buildings_config = [{"id": b.id, "name": b.name} for b in self.buildings]
+        return self.runbook_generator.generate(self.scenario_tracker, buildings_config)
+
+    def generate_autonomy_calibration(self) -> dict:
+        """Generate autonomy calibration certificate from current scenario."""
+        return self.autonomy_calibrator.generate_calibration(self.scenario_tracker, self.agents)
+
+    def generate_process_templates(self) -> dict:
+        """Get UiPath Studio process templates for all 5 automation processes."""
+        return self.template_generator.generate_all_templates()
+
+    def reset_scenario(self) -> None:
+        """Reset all buildings/agents to initial state and start a new scenario."""
+        self.buildings = get_initial_buildings()
+        self.agents = get_initial_agents()
+        self.workflow_engine.initialize(get_initial_workflows())
+        self.dependency_graph.build_graph(self.buildings)
+        self.resource_manager = ResourceManager()
+        self.trust_system = TrustSystem()
+        self.metrics = SimulationMetrics()
+        self.phase = GamePhase.healthy
+        self.alerts.clear()
+        self.events.clear()
+        self._init_agent_handlers()
+        self.scenario_tracker.start_scenario()
+        logger.info("Scenario reset — new scenario started")
 
 
 # ─── Singleton ────────────────────────────────────────────────────────────────
