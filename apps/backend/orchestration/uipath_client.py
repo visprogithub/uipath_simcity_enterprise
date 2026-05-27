@@ -1,0 +1,401 @@
+"""
+UiPath Orchestrator REST API client.
+Handles authentication, job management, approvals, and webhook processing.
+Fails gracefully when credentials are not configured.
+"""
+import json
+import logging
+import os
+import time
+import uuid
+from typing import Callable, Dict, List, Optional
+
+import httpx
+from dotenv import load_dotenv
+
+from models.state import AlertSeverity, UiPathApproval, UiPathJob, UiPathStatus
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+TOKEN_ENDPOINT = "https://cloud.uipath.com/identity_/connect/token"
+TOKEN_BUFFER_SECONDS = 60  # refresh token 60s before expiry
+
+
+class UiPathClient:
+    def __init__(self) -> None:
+        self.base_url: str = os.getenv("UIPATH_CLOUD_URL", "https://cloud.uipath.com")
+        self.org: Optional[str] = os.getenv("UIPATH_ORGANIZATION")
+        self.tenant: Optional[str] = os.getenv("UIPATH_TENANT")
+        self.client_id: Optional[str] = os.getenv("UIPATH_CLIENT_ID")
+        self.client_secret: Optional[str] = os.getenv("UIPATH_CLIENT_SECRET")
+        self.folder_id: Optional[str] = os.getenv("UIPATH_FOLDER_ID")
+
+        self._access_token: Optional[str] = None
+        self._token_expiry: float = 0.0
+        self.connected: bool = False
+        self._active_jobs: Dict[str, UiPathJob] = {}
+        self._pending_approvals: Dict[str, UiPathApproval] = {}
+        self._job_callbacks: Dict[str, List[Callable]] = {}
+        self._configured: bool = self._check_configured()
+
+        if not self._configured:
+            logger.warning(
+                "UiPath credentials not fully configured. "
+                "Simulation will run without real automation jobs. "
+                "Set UIPATH_CLIENT_ID, UIPATH_CLIENT_SECRET, UIPATH_ORGANIZATION, "
+                "UIPATH_TENANT in your .env file to enable UiPath integration."
+            )
+
+    def _check_configured(self) -> bool:
+        """Check if all required env vars are set."""
+        required = [self.client_id, self.client_secret, self.org, self.tenant]
+        return all(v and v not in ("your-client-id", "your-client-secret", "your-org", "your-tenant") for v in required)
+
+    async def authenticate(self) -> bool:
+        """Authenticate with UiPath Cloud and cache the access token."""
+        if not self._configured:
+            return False
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    TOKEN_ENDPOINT,
+                    data={
+                        "grant_type": "client_credentials",
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "scope": "OR.Jobs OR.Folders OR.Robots OR.Actions",
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                self._access_token = data["access_token"]
+                expires_in = data.get("expires_in", 3600)
+                self._token_expiry = time.time() + expires_in - TOKEN_BUFFER_SECONDS
+                self.connected = True
+                logger.info("UiPath authentication successful")
+                return True
+        except httpx.HTTPStatusError as e:
+            logger.error(f"UiPath auth failed (HTTP {e.response.status_code}): {e.response.text[:200]}")
+            self.connected = False
+            return False
+        except Exception as e:
+            logger.error(f"UiPath auth error: {e}")
+            self.connected = False
+            return False
+
+    async def _get_token(self) -> Optional[str]:
+        """Return cached token or re-authenticate if expired."""
+        if self._access_token and time.time() < self._token_expiry:
+            return self._access_token
+        success = await self.authenticate()
+        return self._access_token if success else None
+
+    def _build_orchestrator_url(self, path: str) -> str:
+        return f"{self.base_url}/{self.org}/{self.tenant}/orchestrator_/{path.lstrip('/')}"
+
+    def _build_headers(self, token: str) -> Dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        if self.folder_id:
+            headers["X-UIPATH-OrganizationUnitId"] = str(self.folder_id)
+        return headers
+
+    async def get_release_key(self, process_name: str) -> Optional[str]:
+        """Get the release key for a process by name."""
+        if not self._configured:
+            return None
+
+        token = await self._get_token()
+        if not token:
+            return None
+
+        try:
+            url = self._build_orchestrator_url(
+                f"odata/Releases?$filter=Name eq '{process_name}'"
+            )
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(url, headers=self._build_headers(token))
+                response.raise_for_status()
+                data = response.json()
+                releases = data.get("value", [])
+                if releases:
+                    return releases[0].get("Key")
+                logger.warning(f"No release found for process: {process_name}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get release key for {process_name}: {e}")
+            return None
+
+    async def start_job(
+        self,
+        process_name: str,
+        input_args: dict,
+        folder_id: Optional[str] = None,
+    ) -> Optional[UiPathJob]:
+        """Start a UiPath automation job."""
+        # Create a simulation-tracked job regardless of UiPath connection
+        job_id = f"sim-{uuid.uuid4().hex[:8]}"
+        sim_job = UiPathJob(
+            id=job_id,
+            processName=process_name,
+            state="Pending",
+            startedAt=time.time(),
+            simulationContext=json.dumps({
+                "process": process_name,
+                "args": input_args,
+                "simulated": not self._configured,
+            }),
+        )
+
+        if not self._configured:
+            # Simulate the job without real UiPath
+            sim_job.state = "Running"
+            self._active_jobs[job_id] = sim_job
+            logger.info(f"Simulated UiPath job: {process_name} (id={job_id})")
+            return sim_job
+
+        token = await self._get_token()
+        if not token:
+            sim_job.state = "Running"
+            self._active_jobs[job_id] = sim_job
+            logger.warning(f"UiPath token unavailable, simulating job: {process_name}")
+            return sim_job
+
+        try:
+            release_key = await self.get_release_key(process_name)
+            if not release_key:
+                # Still track as simulated job
+                sim_job.state = "Running"
+                self._active_jobs[job_id] = sim_job
+                logger.warning(f"Release key not found for {process_name}, running simulated")
+                return sim_job
+
+            url = self._build_orchestrator_url(
+                "odata/Jobs/UiPath.Server.Configuration.OData.StartJobs"
+            )
+            effective_folder = folder_id or self.folder_id
+
+            payload = {
+                "startInfo": {
+                    "ReleaseKey": release_key,
+                    "Strategy": "Unattended",
+                    "RobotIds": [],
+                    "JobsCount": 1,
+                    "InputArguments": json.dumps(input_args),
+                }
+            }
+            if effective_folder:
+                payload["startInfo"]["OrganizationUnitId"] = int(effective_folder)
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    url,
+                    headers=self._build_headers(token),
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+                jobs_created = data.get("value", [{}])
+                if jobs_created:
+                    real_id = str(jobs_created[0].get("Id", job_id))
+                    sim_job.id = real_id
+                    sim_job.state = "Running"
+
+            self._active_jobs[sim_job.id] = sim_job
+            logger.info(f"Started UiPath job: {process_name} (id={sim_job.id})")
+            return sim_job
+
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Failed to start UiPath job {process_name} "
+                f"(HTTP {e.response.status_code}): {e.response.text[:200]}"
+            )
+            # Fall back to simulation
+            sim_job.state = "Running"
+            self._active_jobs[job_id] = sim_job
+            return sim_job
+        except Exception as e:
+            logger.error(f"Error starting UiPath job {process_name}: {e}")
+            sim_job.state = "Running"
+            self._active_jobs[job_id] = sim_job
+            return sim_job
+
+    async def get_job_status(self, job_id: str) -> Optional[UiPathJob]:
+        """Get the current status of a UiPath job."""
+        if not self._configured or job_id.startswith("sim-"):
+            return self._active_jobs.get(job_id)
+
+        token = await self._get_token()
+        if not token:
+            return self._active_jobs.get(job_id)
+
+        try:
+            url = self._build_orchestrator_url(f"odata/Jobs({job_id})")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=self._build_headers(token))
+                response.raise_for_status()
+                data = response.json()
+
+                job = self._active_jobs.get(job_id)
+                if not job:
+                    job = UiPathJob(
+                        id=str(data.get("Id", job_id)),
+                        processName=data.get("ReleaseName", "Unknown"),
+                        state=data.get("State", "Unknown"),
+                        startedAt=time.time(),
+                        simulationContext="",
+                    )
+
+                job.state = data.get("State", job.state)
+                self._active_jobs[job_id] = job
+                return job
+        except Exception as e:
+            logger.error(f"Failed to get job status for {job_id}: {e}")
+            return self._active_jobs.get(job_id)
+
+    async def create_action_item(
+        self, title: str, app_name: str, data: dict
+    ) -> Optional[str]:
+        """Create a UiPath Maestro action item (for approvals)."""
+        if not self._configured:
+            action_id = f"action-{uuid.uuid4().hex[:8]}"
+            logger.info(f"Simulated action item: {title} (id={action_id})")
+            return action_id
+
+        token = await self._get_token()
+        if not token:
+            return None
+
+        try:
+            url = self._build_orchestrator_url("api/ActionItems")
+            payload = {
+                "title": title,
+                "appName": app_name,
+                "data": data,
+                "priority": "High",
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    url,
+                    headers=self._build_headers(token),
+                    json=payload,
+                )
+                response.raise_for_status()
+                result = response.json()
+                return str(result.get("Id", ""))
+        except Exception as e:
+            logger.error(f"Failed to create action item '{title}': {e}")
+            return None
+
+    async def poll_active_jobs(self) -> None:
+        """Update status of all active jobs. Called each tick to sync job states."""
+        if not self._active_jobs:
+            return
+
+        jobs_to_check = list(self._active_jobs.items())
+
+        for job_id, job in jobs_to_check:
+            if job.state in ("Successful", "Faulted", "Stopped"):
+                continue  # already terminal
+
+            if not self._configured or job_id.startswith("sim-"):
+                # Simulate job progression
+                elapsed = time.time() - job.startedAt
+                if elapsed > 8.0:  # simulate ~8 second job completion
+                    import random
+                    job.state = "Successful" if random.random() > 0.1 else "Faulted"
+                    # Trigger callbacks
+                    await self._fire_callbacks(job)
+            else:
+                updated = await self.get_job_status(job_id)
+                if updated and updated.state in ("Successful", "Faulted", "Stopped"):
+                    await self._fire_callbacks(updated)
+
+    async def _fire_callbacks(self, job: UiPathJob) -> None:
+        """Fire registered callbacks for a completed job."""
+        callbacks = self._job_callbacks.get(job.id, [])
+        for cb in callbacks:
+            try:
+                await cb(job)
+            except Exception as e:
+                logger.error(f"Job callback error for {job.id}: {e}")
+
+    def on_job_completed(self, job_id: str, callback: Callable) -> None:
+        """Register a callback for when a specific job completes."""
+        if job_id not in self._job_callbacks:
+            self._job_callbacks[job_id] = []
+        self._job_callbacks[job_id].append(callback)
+
+    async def get_status(self) -> UiPathStatus:
+        """Return the full UiPath status object."""
+        active_jobs = [
+            j for j in self._active_jobs.values()
+            if j.state in ("Pending", "Running")
+        ]
+        pending_approvals = list(self._pending_approvals.values())
+
+        return UiPathStatus(
+            connected=self.connected,
+            activeJobs=active_jobs,
+            pendingApprovals=pending_approvals,
+            lastSync=time.time(),
+        )
+
+    async def handle_webhook(self, payload: dict) -> None:
+        """
+        Process incoming webhook from UiPath.
+        Updates job status and triggers callbacks.
+        """
+        event_type = payload.get("Type", "")
+        job_data = payload.get("Job", {})
+
+        if not job_data:
+            logger.debug(f"Webhook received with no job data: {event_type}")
+            return
+
+        job_id = str(job_data.get("Id", ""))
+        if not job_id:
+            return
+
+        if job_id in self._active_jobs:
+            job = self._active_jobs[job_id]
+            old_state = job.state
+            job.state = job_data.get("State", job.state)
+            logger.info(f"Webhook: job {job_id} state {old_state} -> {job.state}")
+
+            if job.state in ("Successful", "Faulted", "Stopped"):
+                await self._fire_callbacks(job)
+        else:
+            # New job we haven't seen (might be triggered externally)
+            new_job = UiPathJob(
+                id=job_id,
+                processName=job_data.get("ReleaseName", "Unknown"),
+                state=job_data.get("State", "Unknown"),
+                startedAt=time.time(),
+                simulationContext=json.dumps(payload),
+            )
+            self._active_jobs[job_id] = new_job
+            logger.info(f"Webhook: registered new job {job_id} ({new_job.processName})")
+
+        # Handle approval results
+        if event_type in ("action.completed", "action.approved", "action.rejected"):
+            action_id = str(payload.get("ActionId", ""))
+            if action_id in self._pending_approvals:
+                del self._pending_approvals[action_id]
+                logger.info(f"Approval {action_id} resolved via webhook")
+
+    def cleanup_jobs(self) -> None:
+        """Remove completed jobs older than 5 minutes."""
+        cutoff = time.time() - 300
+        to_remove = [
+            jid for jid, j in self._active_jobs.items()
+            if j.state in ("Successful", "Faulted", "Stopped") and j.startedAt < cutoff
+        ]
+        for jid in to_remove:
+            del self._active_jobs[jid]
+            self._job_callbacks.pop(jid, None)
