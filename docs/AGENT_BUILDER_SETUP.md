@@ -1005,33 +1005,62 @@ With all five agents created, you need to configure how they coordinate through 
 
 ## Step 8: Connect to Maestro City
 
-### 8.1 Add Agent IDs to the .env File
+### 8.1 How Agent Builder Agents Are Invoked
 
-Open `apps/backend/.env` and add the five agent IDs you copied in steps 2.5, 3.5,
-4.5, 5.5, and 6.5:
+When you publish an Agent Builder agent, UiPath deploys it as an **Orchestrator
+Process** in your MaestroCity folder. Maestro City invokes agents using the standard
+`StartJobs` API with the process's Release name — there is no separate "Agent ID" to
+configure.
 
-```env
-UIPATH_ARIA_AGENT_ID=<paste ARIA Agent ID here>
-UIPATH_SENTINEL_AGENT_ID=<paste SENTINEL Agent ID here>
-UIPATH_VERITAS_AGENT_ID=<paste VERITAS Agent ID here>
-UIPATH_ECHO_AGENT_ID=<paste ECHO Agent ID here>
-UIPATH_APEX_AGENT_ID=<paste APEX Agent ID here>
+The backend's `invoke_agent()` method maps each logical agent name to its Orchestrator
+process name:
+
+```
+aria      →  POST StartJobs with ReleaseKey for "ARIA_Operations_Coordinator"
+sentinel  →  POST StartJobs with ReleaseKey for "SENTINEL_Incident_Response"
+veritas   →  POST StartJobs with ReleaseKey for "VERITAS_Compliance"
+echo      →  POST StartJobs with ReleaseKey for "ECHO_Communications"
+apex      →  POST StartJobs with ReleaseKey for "APEX_Executive_Strategy"
 ```
 
-### 8.2 Restart the Backend
+### 8.2 Configure Process Names in .env
+
+Open `apps/backend/.env` and set the process name for each agent. The value must match
+the **Release name** in Orchestrator exactly (case-sensitive). If you published the
+processes using the names from steps 2–6 of this guide, the defaults already match:
+
+```env
+# Agent Builder: Orchestrator process names
+# Must match the Release name in Orchestrator > MaestroCity folder > Processes
+UIPATH_ARIA_PROCESS_NAME=ARIA_Operations_Coordinator
+UIPATH_SENTINEL_PROCESS_NAME=SENTINEL_Incident_Response
+UIPATH_VERITAS_PROCESS_NAME=VERITAS_Compliance
+UIPATH_ECHO_PROCESS_NAME=ECHO_Communications
+UIPATH_APEX_PROCESS_NAME=APEX_Executive_Strategy
+```
+
+To verify the exact Release names, go to:
+**Orchestrator > MaestroCity folder > Processes** — the "Name" column shows the value
+to use here.
+
+### 8.3 Restart the Backend
 
 ```bash
 cd apps/backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Look for:
+On startup, the backend resolves each process name and caches Release Keys. Look for:
 ```
-INFO:     Maestro agents loaded — ARIA, SENTINEL, VERITAS, ECHO, APEX
+INFO: UiPath integration active
+INFO: Release key cached for ARIA_Operations_Coordinator
+INFO: Release key cached for SENTINEL_Incident_Response
+...
 ```
 
-If you see `Agent IDs not configured — agent routing disabled`, check that all five
-`UIPATH_*_AGENT_ID` variables are set and non-empty.
+If you see `Release key not found for ARIA_Operations_Coordinator`, the process has not
+been published to the MaestroCity folder, or the name in `.env` does not match the
+Orchestrator Release name.
 
 ---
 
@@ -1092,6 +1121,6 @@ of the five named agents (ARIA, SENTINEL, VERITAS, ECHO, APEX).
 | Tool shows validation error (red X) | JSON schema has a syntax error | Use a JSON validator on the schema, re-paste |
 | Tool endpoint unreachable | Backend not running or wrong URL | Start backend; check `http://localhost:8000/health` |
 | Action items not appearing in Maestro | Catalog not linked to MaestroCity folder | Catalogs > MaestroCity > Folder Scope > add MaestroCity |
-| Agent calls wrong process | Process name mismatch | Verify process name in Studio matches exactly (case-sensitive) |
-| Agent ID not accepted in .env | Copied from wrong tenant | Check agent ID in Agent Builder > Overview tab for the correct tenant |
+| Agent calls wrong process | Process name mismatch in .env | Verify UIPATH_*_PROCESS_NAME matches the Release name in Orchestrator > Processes (case-sensitive) |
+| Release key not found on startup | Process not published or wrong name | Publish from Studio to MaestroCity folder; confirm name matches UIPATH_*_PROCESS_NAME exactly |
 | Coordination rules not firing | Agent Builder version does not support rule types used | Simplify to event triggers; remove coordination rule section |

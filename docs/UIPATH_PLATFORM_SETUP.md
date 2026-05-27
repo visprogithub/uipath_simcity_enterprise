@@ -589,6 +589,53 @@ generates a step-by-step recovery checklist with Maestro action items.
 
 ---
 
+## 6.1 Set Up Integration Service API Triggers
+
+API Triggers let external systems (like Maestro City) fire a UiPath process via a simple
+HTTP POST without needing to look up a Release Key first. Create one trigger per
+enterprise system endpoint listed below.
+
+### 6.1.1 Open API Triggers
+
+1. In Orchestrator, open the **MaestroCity** folder.
+2. In the left sidebar, look for **Triggers** (clock icon). Click it.
+3. Click the **API Triggers** tab.
+4. Click **+ Add Trigger**.
+
+### 6.1.2 Create the Five Required Triggers
+
+For each trigger, fill in the form and click **Create**:
+
+| Display Name              | Slug (unique URL path)    | Process to invoke         | Enabled |
+|---------------------------|---------------------------|---------------------------|---------|
+| EHR Availability Check    | `ehr-availability-check`  | `Incident_Escalation`     | Yes     |
+| Pharmacy Inventory Sync   | `pharmacy-inventory-sync` | `Emergency_Staffing`      | Yes     |
+| Staffing Status Update    | `staffing-status-update`  | `Emergency_Staffing`      | Yes     |
+| Outage Notification       | `outage-notification`     | `Crisis_Response`         | Yes     |
+| Escalation Notify         | `escalation-notify`       | `Incident_Escalation`     | Yes     |
+
+After creating each trigger, copy the slug exactly as shown and confirm it matches
+the corresponding `UIPATH_TRIGGER_*_SLUG` value in your `.env` file.
+
+### 6.1.3 How API Triggers Work
+
+When Maestro City receives an external notification (e.g., `POST /api/enterprise/outage/notify`),
+the backend fires the corresponding UiPath API Trigger:
+
+```
+POST https://cloud.uipath.com/{org}/{tenant}/orchestrator_/api/triggers/{slug}
+Authorization: Bearer {token}
+X-UIPATH-OrganizationUnitId: {folder_id}
+Content-Type: application/json
+
+{ "data": { "notificationId": "...", "systemId": "ehr", "severity": "high" } }
+```
+
+UiPath Orchestrator then starts the linked process and passes the `data` payload as
+input arguments. No Release Key lookup is needed — the trigger handles that internally.
+
+---
+
 ## 7. Set Up Webhooks
 
 Webhooks allow Orchestrator to push job status updates back to the Maestro City backend
@@ -683,7 +730,7 @@ For each:
 After completing all steps above, your `.env` file in `apps/backend/` should look like:
 
 ```env
-# UiPath Connection
+# ─── UiPath Connection ────────────────────────────────────────────────────────
 UIPATH_CLOUD_URL=https://cloud.uipath.com
 UIPATH_ORGANIZATION=your-org-name
 UIPATH_TENANT=your-tenant-name
@@ -692,10 +739,33 @@ UIPATH_CLIENT_SECRET=very-long-secret-string-from-uipath
 UIPATH_FOLDER_ID=12345
 UIPATH_WEBHOOK_SECRET=mc-webhook-secret-a7f3k9p2q8r1s4t6
 
-# Optional: OpenAI for narrative generation
+# ─── Agent Builder: Orchestrator Process Names ────────────────────────────────
+# Each Agent Builder agent is published as an Orchestrator process.
+# These names must match the Release names in your MaestroCity folder exactly.
+# The backend calls StartJobs with these names when invoking agents.
+UIPATH_ARIA_PROCESS_NAME=ARIA_Operations_Coordinator
+UIPATH_SENTINEL_PROCESS_NAME=SENTINEL_Incident_Response
+UIPATH_VERITAS_PROCESS_NAME=VERITAS_Compliance
+UIPATH_ECHO_PROCESS_NAME=ECHO_Communications
+UIPATH_APEX_PROCESS_NAME=APEX_Executive_Strategy
+
+# ─── Integration Service API Trigger Slugs ────────────────────────────────────
+# Create these triggers in Orchestrator > Triggers > API Triggers.
+# The slug is the unique path segment you assign when creating each trigger.
+# Leave as default if you use the exact names from UIPATH_PLATFORM_SETUP step 6.
+UIPATH_TRIGGER_EHR_SLUG=ehr-availability-check
+UIPATH_TRIGGER_PHARMACY_SLUG=pharmacy-inventory-sync
+UIPATH_TRIGGER_STAFFING_SLUG=staffing-status-update
+UIPATH_TRIGGER_OUTAGE_SLUG=outage-notification
+UIPATH_TRIGGER_ESCALATION_SLUG=escalation-notify
+
+# ─── Coding Agent (OpenAI) ────────────────────────────────────────────────────
+# Required for the Coding Agent bonus feature (AI-generated XAML workflows).
+# Model: gpt-4o. Without this key the feature runs in demo mode.
+# Get your key at: https://platform.openai.com/api-keys
 OPENAI_API_KEY=sk-...
 
-# Simulation settings
+# ─── Simulation Settings ──────────────────────────────────────────────────────
 SIMULATION_TICK_INTERVAL=1.0
 ```
 

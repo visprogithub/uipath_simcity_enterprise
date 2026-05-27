@@ -537,6 +537,81 @@ input_args = {
 
 ---
 
+### 7. Invoke an Agent Builder Agent
+
+Agent Builder agents are published to Orchestrator as regular Processes. Invoking an
+agent is identical to starting any other job — use the `StartJobs` endpoint with the
+agent's process name. The backend's `invoke_agent()` method handles name resolution:
+
+```python
+# Calling invoke_agent("aria", context) in Python translates to:
+await client.start_job(
+    process_name="ARIA_Operations_Coordinator",   # from UIPATH_ARIA_PROCESS_NAME
+    input_args={
+        "in_AgentId": "aria",
+        "in_Context": json.dumps(context),        # full simulation context as JSON string
+        "in_Phase": context.get("phase"),
+        "in_SimulationTick": context.get("tick"),
+    }
+)
+```
+
+The agent process receives the simulation context as `in_Context` (a JSON-encoded
+string), processes it according to its Agent Builder system instructions and tools,
+and returns results via `OutputArguments` in the webhook callback.
+
+---
+
+### 8. Fire an Integration Service API Trigger
+
+API Triggers bypass Release Key lookup — you POST directly to a named slug and
+Orchestrator starts the linked process:
+
+```
+POST https://cloud.uipath.com/{org}/{tenant}/orchestrator_/api/triggers/{slug}
+Authorization: Bearer {token}
+X-UIPATH-OrganizationUnitId: {folder_id}
+Content-Type: application/json
+
+{
+  "data": {
+    "notificationId": "notif-a1b2c3d4",
+    "systemId": "ehr-primary",
+    "severity": "high",
+    "matchedBuildingId": "hospital",
+    "message": "EHR sync failure detected",
+    "affectedServices": ["patient-records", "lab-results"]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "jobId": "12346",
+  "state": "Pending"
+}
+```
+
+The `data` object is passed to the process as `in_TriggerData` (a JSON-encoded string).
+Parse it inside Studio with `Deserialize JSON` or `JObject.Parse(in_TriggerData)`.
+
+**Python helper (already implemented in `uipath_client.trigger_api_workflow()`):**
+
+```python
+async def trigger_api_workflow(
+    self,
+    trigger_slug: str,      # e.g. "outage-notification"
+    payload: dict,          # becomes the "data" object
+    folder_id: str = None,
+) -> dict:
+    url = f"{base_url}/api/triggers/{trigger_slug}"
+    response = await http.post(url, headers=headers, json={"data": payload})
+    return response.json()
+```
+
+---
+
 ## Webhook Integration
 
 ### Receiving Webhooks
@@ -716,17 +791,27 @@ every 100 ticks.
 All variables live in `apps/backend/.env`. Copy `apps/backend/.env.example` as a
 starting point.
 
-| Variable                   | Required | Default                          | Description                                                                                   | Where to Find                                          |
-|----------------------------|----------|----------------------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|
-| `UIPATH_CLOUD_URL`         | No       | `https://cloud.uipath.com`       | Base URL for all UiPath Cloud API calls. Only change if using an on-prem Orchestrator.       | Hardcoded — do not change for cloud deployments        |
-| `UIPATH_ORGANIZATION`      | Yes      | —                                | Your UiPath organisation name (appears in browser URL after cloud.uipath.com/)               | cloud.uipath.com/{**OrgName**}/portal_                 |
-| `UIPATH_TENANT`            | Yes      | —                                | Tenant name within your organisation.                                                         | Admin > Tenants > Name column                          |
-| `UIPATH_CLIENT_ID`         | Yes      | —                                | OAuth 2.0 client ID for the MaestroCity Integration application.                              | Admin > External Applications > MaestroCity Integration |
-| `UIPATH_CLIENT_SECRET`     | Yes      | —                                | OAuth 2.0 client secret. Rotate immediately if compromised.                                   | Generated during External Application creation         |
-| `UIPATH_FOLDER_ID`         | Yes      | —                                | Integer ID of the MaestroCity folder in Orchestrator.                                         | From URL or GET /odata/Folders API                     |
-| `UIPATH_WEBHOOK_SECRET`    | No       | `""` (verification disabled)     | HMAC secret for validating incoming webhook requests from UiPath.                             | Set in Orchestrator > Integrations > Webhooks          |
-| `OPENAI_API_KEY`           | No       | —                                | If set, enables LLM-generated incident narrative text in the frontend.                        | platform.openai.com/api-keys                           |
-| `SIMULATION_TICK_INTERVAL` | No       | `1.0`                            | Seconds between simulation ticks. Lower = faster simulation. Minimum `0.1`.                  | Application setting — no external service              |
+| Variable                        | Required | Default                          | Description                                                                                   | Where to Find                                           |
+|---------------------------------|----------|----------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| `UIPATH_CLOUD_URL`              | No       | `https://cloud.uipath.com`       | Base URL for all UiPath Cloud API calls. Only change if using an on-prem Orchestrator.       | Hardcoded — do not change for cloud deployments         |
+| `UIPATH_ORGANIZATION`           | Yes      | —                                | Your UiPath organisation name (appears in browser URL after cloud.uipath.com/)               | cloud.uipath.com/{**OrgName**}/portal_                  |
+| `UIPATH_TENANT`                 | Yes      | —                                | Tenant name within your organisation.                                                         | Admin > Tenants > Name column                           |
+| `UIPATH_CLIENT_ID`              | Yes      | —                                | OAuth 2.0 client ID for the MaestroCity Integration application.                              | Admin > External Applications > MaestroCity Integration |
+| `UIPATH_CLIENT_SECRET`          | Yes      | —                                | OAuth 2.0 client secret. Rotate immediately if compromised.                                   | Generated during External Application creation          |
+| `UIPATH_FOLDER_ID`              | Yes      | —                                | Integer ID of the MaestroCity folder in Orchestrator.                                         | From URL or GET /odata/Folders API                      |
+| `UIPATH_WEBHOOK_SECRET`         | No       | `""` (verification disabled)     | HMAC secret for validating incoming webhook requests from UiPath.                             | Set in Orchestrator > Integrations > Webhooks           |
+| `UIPATH_ARIA_PROCESS_NAME`      | No       | `ARIA_Operations_Coordinator`    | Orchestrator Release name for the ARIA Agent Builder agent process.                           | Orchestrator > MaestroCity folder > Processes           |
+| `UIPATH_SENTINEL_PROCESS_NAME`  | No       | `SENTINEL_Incident_Response`     | Orchestrator Release name for SENTINEL.                                                       | Orchestrator > MaestroCity folder > Processes           |
+| `UIPATH_VERITAS_PROCESS_NAME`   | No       | `VERITAS_Compliance`             | Orchestrator Release name for VERITAS.                                                        | Orchestrator > MaestroCity folder > Processes           |
+| `UIPATH_ECHO_PROCESS_NAME`      | No       | `ECHO_Communications`            | Orchestrator Release name for ECHO.                                                           | Orchestrator > MaestroCity folder > Processes           |
+| `UIPATH_APEX_PROCESS_NAME`      | No       | `APEX_Executive_Strategy`        | Orchestrator Release name for APEX.                                                           | Orchestrator > MaestroCity folder > Processes           |
+| `UIPATH_TRIGGER_EHR_SLUG`       | No       | `ehr-availability-check`         | Slug of the API Trigger that fires on EHR outage notifications.                               | Orchestrator > MaestroCity > Triggers > API Triggers    |
+| `UIPATH_TRIGGER_PHARMACY_SLUG`  | No       | `pharmacy-inventory-sync`        | Slug of the API Trigger for pharmacy inventory events.                                        | Orchestrator > MaestroCity > Triggers > API Triggers    |
+| `UIPATH_TRIGGER_STAFFING_SLUG`  | No       | `staffing-status-update`         | Slug of the API Trigger for staffing update events.                                           | Orchestrator > MaestroCity > Triggers > API Triggers    |
+| `UIPATH_TRIGGER_OUTAGE_SLUG`    | No       | `outage-notification`            | Slug of the API Trigger fired when an external outage is reported.                            | Orchestrator > MaestroCity > Triggers > API Triggers    |
+| `UIPATH_TRIGGER_ESCALATION_SLUG`| No       | `escalation-notify`              | Slug of the API Trigger fired when an escalation is received.                                 | Orchestrator > MaestroCity > Triggers > API Triggers    |
+| `OPENAI_API_KEY`                | No       | —                                | Enables the Coding Agent feature (AI-generated XAML via GPT-4o). See docs/CODING_AGENT.md.   | platform.openai.com/api-keys                            |
+| `SIMULATION_TICK_INTERVAL`      | No       | `1.0`                            | Seconds between simulation ticks. Lower = faster simulation. Minimum `0.1`.                  | Application setting — no external service               |
 
 ### Checking Connection Status at Runtime
 
