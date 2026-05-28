@@ -761,7 +761,7 @@ UIPATH_TRIGGER_ESCALATION_SLUG=escalation-notify
 
 # ─── Coding Agent (OpenAI) ────────────────────────────────────────────────────
 # Required for the Coding Agent bonus feature (AI-generated XAML workflows).
-# Model: gpt-4o. Without this key the feature runs in demo mode.
+# Model: gpt-4.1-mini. Without this key the feature runs in demo mode.
 # Get your key at: https://platform.openai.com/api-keys
 OPENAI_API_KEY=sk-...
 
