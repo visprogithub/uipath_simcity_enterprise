@@ -1,13 +1,23 @@
-import json
 import time
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from simulation.scenario_tracker import ScenarioTracker
 
 
 class AfterActionReporter:
-    def generate(self, tracker: ScenarioTracker, buildings_config: list) -> Dict[str, Any]:
+    def generate(
+        self,
+        tracker: ScenarioTracker,
+        buildings_config: list,
+        vocabulary: Optional[Dict[str, str]] = None,
+        scenario_name: Optional[str] = None,
+        uipath_processes: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """Generate a complete after-action report."""
+        if vocabulary is None:
+            vocabulary = {}
+        if uipath_processes is None:
+            uipath_processes = ["Incident_Escalation", "Crisis_Response"]
 
         if not tracker.snapshots:
             return {
@@ -104,8 +114,9 @@ class AfterActionReporter:
         else:
             outcome_str = "System did not achieve stable recovery during this scenario."
 
+        scenario_label = f"{scenario_name} — " if scenario_name else ""
         executive_summary = (
-            f"Scenario reached {phase_reached} phase with operational stability dropping to "
+            f"{scenario_label}Scenario reached {phase_reached} phase with operational stability dropping to "
             f"{worst.get('operationalStability', 100):.0f}%. "
             f"{outcome_str} "
             f"Automation contributed {automation_pct:.0f}% of recovery actions. "
@@ -114,10 +125,11 @@ class AfterActionReporter:
 
         # Recommendations
         recommendations = []
+        ops_agent_name = vocabulary.get("ops_agent_name", "ARIA (Operations Coordinator)")
         if worst.get('humanStrain', 0) > 75:
             recommendations.append(
-                "Human strain peaked above 75% — pre-position additional on-call staff or increase "
-                "ARIA (Operations Coordinator) autonomy to Level 3 to reduce manual intervention load."
+                f"Human strain peaked above 75% — pre-position additional on-call staff or increase "
+                f"{ops_agent_name} autonomy to Level 3 to reduce manual intervention load."
             )
         if worst.get('systemTrust', 100) < 50:
             recommendations.append(
@@ -125,10 +137,12 @@ class AfterActionReporter:
                 "reduce agent autonomy temporarily after trust drops, then gradually increase "
                 "as agents demonstrate reliable decisions."
             )
+        process_names = uipath_processes[:2] if len(uipath_processes) >= 2 else uipath_processes
+        process_list_str = " and ".join(process_names) if process_names else "automation processes"
         if len([j for j in tracker.uipath_jobs if j.final_state == 'Faulted']) > 0:
             recommendations.append(
-                "UiPath automation faults detected — review process error handling in "
-                "Incident_Escalation and Crisis_Response processes. Add retry logic with exponential backoff."
+                f"UiPath automation faults detected — review process error handling in "
+                f"{process_list_str} processes. Add retry logic with exponential backoff."
             )
         if tracker.crisis_ticks > 20:
             recommendations.append(
@@ -161,10 +175,14 @@ class AfterActionReporter:
             2
         )
 
+        scenario_slug = (scenario_name or "").lower().replace(" ", "-").replace("&", "and") if scenario_name else ""
+        report_id = f"aar-{scenario_slug}-{tracker.scenario_id}" if scenario_slug else f"aar-{tracker.scenario_id}"
+
         return {
-            "reportId": f"aar-{tracker.scenario_id}",
+            "reportId": report_id,
             "generatedAt": time.time(),
             "scenarioId": tracker.scenario_id,
+            "scenarioName": scenario_name or "",
             "durationTicks": tracker.duration_ticks,
             "durationSeconds": round(time.time() - tracker.started_at, 1),
             "executiveSummary": executive_summary,

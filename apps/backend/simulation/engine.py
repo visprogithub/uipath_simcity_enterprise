@@ -34,7 +34,13 @@ from models.actions import (
     TriggerOutageAction,
     TriggerUiPathAction,
 )
-from simulation.city_config import get_initial_agents, get_initial_buildings, get_initial_workflows
+from simulation.city_config import (
+    get_initial_agents,
+    get_initial_buildings,
+    get_initial_workflows,
+    get_dependency_edges,
+    get_scenario_definition,
+)
 from simulation.dependency_graph import DependencyGraph
 from simulation.metrics_calculator import MetricsCalculator
 from simulation.phase_detector import PhaseDetector
@@ -59,10 +65,13 @@ class SimulationEngine:
     Manages all subsystems and coordinates the per-tick update cycle.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, scenario_id: str = None) -> None:
+        self.active_scenario_id: str = scenario_id or os.getenv("ACTIVE_SCENARIO", "healthcare")
+        self.active_scenario = get_scenario_definition(self.active_scenario_id)
+
         self.tick_count: int = 0
-        self.buildings: List[Building] = get_initial_buildings()
-        self.agents: List[Agent] = get_initial_agents()
+        self.buildings: List[Building] = get_initial_buildings(self.active_scenario_id)
+        self.agents: List[Agent] = get_initial_agents(self.active_scenario_id)
         self.alerts: List[Alert] = []
         self.events: List[SimulationEvent] = []
         self.phase: GamePhase = GamePhase.healthy
@@ -79,7 +88,7 @@ class SimulationEngine:
         self.escalation_router = EscalationRouter(self.uipath_client)
 
         # Initialize workflow engine with starting workflows
-        self.workflow_engine.initialize(get_initial_workflows())
+        self.workflow_engine.initialize(get_initial_workflows(self.active_scenario_id))
 
         # Build initial dependency graph
         self.dependency_graph.build_graph(self.buildings)
@@ -645,7 +654,13 @@ class SimulationEngine:
     def generate_after_action_report(self) -> dict:
         """Generate and return after-action report for the current scenario."""
         buildings_config = [{"id": b.id, "name": b.name} for b in self.buildings]
-        return self.after_action_reporter.generate(self.scenario_tracker, buildings_config)
+        return self.after_action_reporter.generate(
+            self.scenario_tracker,
+            buildings_config,
+            vocabulary=self.active_scenario.vocabulary,
+            scenario_name=self.active_scenario.name,
+            uipath_processes=self.active_scenario.uipath_processes,
+        )
 
     def generate_runbook(self) -> dict:
         """Generate operational runbook from current scenario data."""
@@ -662,9 +677,9 @@ class SimulationEngine:
 
     def reset_scenario(self) -> None:
         """Reset all buildings/agents to initial state and start a new scenario."""
-        self.buildings = get_initial_buildings()
-        self.agents = get_initial_agents()
-        self.workflow_engine.initialize(get_initial_workflows())
+        self.buildings = get_initial_buildings(self.active_scenario_id)
+        self.agents = get_initial_agents(self.active_scenario_id)
+        self.workflow_engine.initialize(get_initial_workflows(self.active_scenario_id))
         self.dependency_graph.build_graph(self.buildings)
         self.resource_manager = ResourceManager()
         self.trust_system = TrustSystem()
@@ -674,7 +689,39 @@ class SimulationEngine:
         self.events.clear()
         self._init_agent_handlers()
         self.scenario_tracker.start_scenario()
-        logger.info("Scenario reset — new scenario started")
+        logger.info(f"Scenario reset — new scenario started (scenario={self.active_scenario_id})")
+
+    def select_scenario(self, scenario_id: str) -> dict:
+        """Switch to a different scenario, resetting all simulation state."""
+        from scenarios.registry import get_scenario as _registry_get
+        try:
+            new_scenario = _registry_get(scenario_id)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
+        self.active_scenario_id = scenario_id
+        self.active_scenario = new_scenario
+
+        # Reset all state to the new scenario
+        self.buildings = get_initial_buildings(scenario_id)
+        self.agents = get_initial_agents(scenario_id)
+        self.workflow_engine.initialize(get_initial_workflows(scenario_id))
+        self.dependency_graph.build_graph(self.buildings)
+        self.resource_manager = ResourceManager()
+        self.trust_system = TrustSystem()
+        self.metrics = SimulationMetrics()
+        self.phase = GamePhase.healthy
+        self.alerts.clear()
+        self.events.clear()
+        self._init_agent_handlers()
+        self.scenario_tracker.start_scenario()
+
+        logger.info(f"Scenario switched to: {scenario_id} ({new_scenario.name})")
+        return {
+            "success": True,
+            "scenarioId": scenario_id,
+            "scenarioName": new_scenario.name,
+        }
 
 
 # ─── Singleton ────────────────────────────────────────────────────────────────

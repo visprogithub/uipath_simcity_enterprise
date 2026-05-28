@@ -1,0 +1,285 @@
+"""
+Financial Services scenario definition for Maestro City.
+"""
+from scenarios.base import ScenarioDefinition
+
+
+def get_scenario() -> ScenarioDefinition:
+    return ScenarioDefinition(
+        id="financial_services",
+        name="Financial Services",
+        tagline="Keep trading floors and risk systems online during market volatility.",
+        description=(
+            "Simulate a financial services enterprise managing trading floors, risk management systems, "
+            "and regulatory compliance infrastructure. Respond to trading outages that directly impact "
+            "market positions, regulatory obligations, and counterparty trust."
+        ),
+        industry="Financial Services",
+        icon="📈",
+        color="#3B82F6",
+
+        buildings=[
+            {
+                "id": "trading_floor",
+                "type": "hospital",
+                "name": "Trading Floor",
+                "pos": {"x": 1, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 90.0,
+                "staffingLevel": 70.0,
+                "trustLevel": 92.0,
+                "dependencies": ["cloud_infra", "orchestration_center", "compliance_center"],
+                "queueDepth": 15,
+                "recoveryCapacity": 60.0,
+            },
+            {
+                "id": "risk_management",
+                "type": "pharmacy",
+                "name": "Risk Management System",
+                "pos": {"x": 6, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 85.0,
+                "staffingLevel": 75.0,
+                "trustLevel": 90.0,
+                "dependencies": ["cloud_infra", "trading_floor", "orchestration_center"],
+                "queueDepth": 8,
+                "recoveryCapacity": 70.0,
+            },
+            {
+                "id": "cloud_infra",
+                "type": "cloud_datacenter",
+                "name": "Cloud Trading Infrastructure",
+                "pos": {"x": 14, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 100.0,
+                "staffingLevel": 60.0,
+                "trustLevel": 96.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+            {
+                "id": "comms_hub",
+                "type": "comms_hub",
+                "name": "Market Data Communications",
+                "pos": {"x": 10, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 95.0,
+                "staffingLevel": 65.0,
+                "trustLevel": 93.0,
+                "dependencies": ["cloud_infra"],
+                "queueDepth": 5,
+                "recoveryCapacity": 80.0,
+            },
+            {
+                "id": "orchestration_center",
+                "type": "orchestration_center",
+                "name": "Automation Orchestrator",
+                "pos": {"x": 18, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 90.0,
+                "staffingLevel": 70.0,
+                "trustLevel": 94.0,
+                "dependencies": ["cloud_infra", "comms_hub"],
+                "queueDepth": 3,
+                "recoveryCapacity": 85.0,
+            },
+            {
+                "id": "compliance_center",
+                "type": "staffing_hr",
+                "name": "Compliance & Regulatory",
+                "pos": {"x": 22, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 80.0,
+                "staffingLevel": 85.0,
+                "trustLevel": 82.0,
+                "dependencies": ["comms_hub"],
+                "queueDepth": 20,
+                "recoveryCapacity": 50.0,
+            },
+            {
+                "id": "dr_site",
+                "type": "backup_infra",
+                "name": "Disaster Recovery Site",
+                "pos": {"x": 26, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 100.0,
+                "staffingLevel": 50.0,
+                "trustLevel": 87.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+        ],
+
+        agents=[
+            {
+                "id": "ops_coord",
+                "type": "operations_coordinator",
+                "name": "MERIDIAN",
+                "autonomyLevel": 2,
+                "trustScore": 85.0,
+                "status": "idle",
+                "lastAction": "Operations coordination for trading systems and workflow routing",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "incident_resp",
+                "type": "incident_response",
+                "name": "GUARDIAN",
+                "autonomyLevel": 2,
+                "trustScore": 90.0,
+                "status": "idle",
+                "lastAction": "Incident response for trading outages and cascade failures",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "cloud_infra",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "compliance",
+                "type": "compliance",
+                "name": "LEXIS",
+                "autonomyLevel": 1,
+                "trustScore": 78.0,
+                "status": "idle",
+                "lastAction": "Regulatory compliance monitoring for SOX, PCI-DSS, MiFID II",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "compliance_center",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "comms",
+                "type": "communications",
+                "name": "HERALD",
+                "autonomyLevel": 2,
+                "trustScore": 82.0,
+                "status": "idle",
+                "lastAction": "Market communications and stakeholder notifications",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "comms_hub",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "exec_strategy",
+                "type": "executive_strategy",
+                "name": "NEXUS",
+                "autonomyLevel": 1,
+                "trustScore": 88.0,
+                "status": "idle",
+                "lastAction": "Executive strategy and risk management",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+        ],
+
+        workflows=[
+            # Transaction records: trading_floor <-> risk_management
+            {"id": "wf-001", "type": "ehr_record", "sourceId": "trading_floor", "destId": "risk_management", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.10},
+            {"id": "wf-002", "type": "ehr_record", "sourceId": "trading_floor", "destId": "risk_management", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.40},
+            {"id": "wf-003", "type": "ehr_record", "sourceId": "trading_floor", "destId": "risk_management", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.70},
+            {"id": "wf-004", "type": "ehr_record", "sourceId": "trading_floor", "destId": "risk_management", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.30, "progress": 0.05},
+            # Risk assessments: risk_management -> trading_floor
+            {"id": "wf-005", "type": "prescription", "sourceId": "risk_management", "destId": "trading_floor", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.25, "progress": 0.20},
+            {"id": "wf-006", "type": "prescription", "sourceId": "risk_management", "destId": "trading_floor", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.35, "progress": 0.55},
+            {"id": "wf-007", "type": "prescription", "sourceId": "risk_management", "destId": "trading_floor", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.80},
+            # Comm packets: comms_hub flows
+            {"id": "wf-008", "type": "comm_packet", "sourceId": "comms_hub", "destId": "trading_floor", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.30},
+            {"id": "wf-009", "type": "comm_packet", "sourceId": "comms_hub", "destId": "trading_floor", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.60},
+            {"id": "wf-010", "type": "comm_packet", "sourceId": "comms_hub", "destId": "risk_management", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.15},
+            {"id": "wf-011", "type": "comm_packet", "sourceId": "comms_hub", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.08, "progress": 0.45},
+            # Approval requests: orchestration flows
+            {"id": "wf-012", "type": "approval_request", "sourceId": "trading_floor", "destId": "orchestration_center", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.60, "progress": 0.25},
+            {"id": "wf-013", "type": "approval_request", "sourceId": "risk_management", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.55, "progress": 0.50},
+            # Compliance reports: compliance_center flows
+            {"id": "wf-014", "type": "staffing_request", "sourceId": "trading_floor", "destId": "compliance_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.35},
+            {"id": "wf-015", "type": "staffing_request", "sourceId": "trading_floor", "destId": "compliance_center", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.65},
+            {"id": "wf-016", "type": "staffing_request", "sourceId": "risk_management", "destId": "compliance_center", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.10},
+            # Escalations
+            {"id": "wf-017", "type": "escalation", "sourceId": "orchestration_center", "destId": "cloud_infra", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.40, "progress": 0.20},
+            # Failover commands
+            {"id": "wf-018", "type": "failover_cmd", "sourceId": "dr_site", "destId": "cloud_infra", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.90},
+            # Additional mixed workflows
+            {"id": "wf-019", "type": "ehr_record", "sourceId": "trading_floor", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.18, "progress": 0.50},
+            {"id": "wf-020", "type": "comm_packet", "sourceId": "comms_hub", "destId": "compliance_center", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.75},
+        ],
+
+        dependency_edges=[
+            ("trading_floor", "cloud_infra"),
+            ("trading_floor", "orchestration_center"),
+            ("trading_floor", "compliance_center"),
+            ("risk_management", "cloud_infra"),
+            ("risk_management", "trading_floor"),
+            ("risk_management", "orchestration_center"),
+            ("comms_hub", "cloud_infra"),
+            ("orchestration_center", "cloud_infra"),
+            ("orchestration_center", "comms_hub"),
+            ("compliance_center", "comms_hub"),
+        ],
+
+        vocabulary={
+            "service_unit": "transaction",
+            "primary_system": "Trading Floor",
+            "secondary_system": "Risk Management",
+            "workflow_type_primary": "trade transaction",
+            "workflow_type_secondary": "risk assessment",
+            "staffing_role": "trading operations staff",
+            "incident_name": "Trading Operations Incident",
+            "outage_label": "Trading Halt",
+            "org_unit": "desk",
+        },
+
+        compliance_frameworks=["SOX", "PCI-DSS", "MiFID II", "Basel III"],
+
+        uipath_processes=[
+            "Trade_Incident_Escalation",
+            "Regulatory_Approval_Chain",
+            "Trading_Crisis_Response",
+            "Desk_Coverage_Staffing",
+            "Trust_Recovery_Protocol",
+        ],
+
+        outage_presets=[
+            {
+                "id": "cloud_outage",
+                "name": "Cloud Infrastructure Outage",
+                "buildingId": "cloud_infra",
+                "severity": "full",
+                "description": "Cloud trading infrastructure failure — triggers cascade to trading floor and risk systems",
+            },
+            {
+                "id": "trading_halt",
+                "name": "Trading Floor Halt",
+                "buildingId": "trading_floor",
+                "severity": "partial",
+                "description": "Partial trading system failure — order routing degraded, position reconciliation impacted",
+            },
+            {
+                "id": "comms_failure",
+                "name": "Market Data Feed Failure",
+                "buildingId": "comms_hub",
+                "severity": "full",
+                "description": "Market data communications failure — real-time pricing and risk feeds disrupted",
+            },
+        ],
+
+        industry_context=(
+            "Financial services operations require sub-millisecond availability for trading systems "
+            "and strict regulatory compliance under SOX, MiFID II, and Basel III. Downtime directly "
+            "impacts market positions, regulatory obligations, and counterparty trust."
+        ),
+    )

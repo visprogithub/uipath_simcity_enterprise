@@ -1,0 +1,285 @@
+"""
+Retail / E-commerce scenario definition for Maestro City.
+"""
+from scenarios.base import ScenarioDefinition
+
+
+def get_scenario() -> ScenarioDefinition:
+    return ScenarioDefinition(
+        id="retail_ecommerce",
+        name="Retail & E-commerce",
+        tagline="Keep orders flowing and payments processing during peak commerce events.",
+        description=(
+            "Simulate a retail e-commerce enterprise managing order management, payment processing, "
+            "and fulfillment operations. Respond to outages that directly impact revenue, customer "
+            "trust, and SLA compliance during high-traffic commerce events."
+        ),
+        industry="Retail & E-commerce",
+        icon="🛒",
+        color="#F59E0B",
+
+        buildings=[
+            {
+                "id": "order_management",
+                "type": "hospital",
+                "name": "Order Management System",
+                "pos": {"x": 1, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 90.0,
+                "staffingLevel": 72.0,
+                "trustLevel": 88.0,
+                "dependencies": ["cloud_platform", "orchestration_center", "fulfillment_ops"],
+                "queueDepth": 25,
+                "recoveryCapacity": 60.0,
+            },
+            {
+                "id": "payment_gateway",
+                "type": "pharmacy",
+                "name": "Payment Gateway",
+                "pos": {"x": 6, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 95.0,
+                "staffingLevel": 78.0,
+                "trustLevel": 92.0,
+                "dependencies": ["cloud_platform", "order_management", "orchestration_center"],
+                "queueDepth": 10,
+                "recoveryCapacity": 70.0,
+            },
+            {
+                "id": "cloud_platform",
+                "type": "cloud_datacenter",
+                "name": "Cloud Commerce Platform",
+                "pos": {"x": 14, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 100.0,
+                "staffingLevel": 60.0,
+                "trustLevel": 96.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+            {
+                "id": "comms_hub",
+                "type": "comms_hub",
+                "name": "Customer Communications",
+                "pos": {"x": 10, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 92.0,
+                "staffingLevel": 65.0,
+                "trustLevel": 90.0,
+                "dependencies": ["cloud_platform"],
+                "queueDepth": 8,
+                "recoveryCapacity": 80.0,
+            },
+            {
+                "id": "orchestration_center",
+                "type": "orchestration_center",
+                "name": "Commerce Automation Hub",
+                "pos": {"x": 18, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 88.0,
+                "staffingLevel": 68.0,
+                "trustLevel": 93.0,
+                "dependencies": ["cloud_platform", "comms_hub"],
+                "queueDepth": 4,
+                "recoveryCapacity": 85.0,
+            },
+            {
+                "id": "fulfillment_ops",
+                "type": "staffing_hr",
+                "name": "Warehouse & Fulfillment",
+                "pos": {"x": 22, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 82.0,
+                "staffingLevel": 88.0,
+                "trustLevel": 80.0,
+                "dependencies": ["comms_hub"],
+                "queueDepth": 30,
+                "recoveryCapacity": 55.0,
+            },
+            {
+                "id": "backup_infra",
+                "type": "backup_infra",
+                "name": "Backup Commerce Infrastructure",
+                "pos": {"x": 26, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 100.0,
+                "staffingLevel": 50.0,
+                "trustLevel": 85.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+        ],
+
+        agents=[
+            {
+                "id": "ops_coord",
+                "type": "operations_coordinator",
+                "name": "FLUX",
+                "autonomyLevel": 2,
+                "trustScore": 85.0,
+                "status": "idle",
+                "lastAction": "E-commerce order flow and fulfillment coordination",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "incident_resp",
+                "type": "incident_response",
+                "name": "SHIELD",
+                "autonomyLevel": 2,
+                "trustScore": 90.0,
+                "status": "idle",
+                "lastAction": "Payment and order incident response",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "cloud_platform",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "compliance",
+                "type": "compliance",
+                "name": "CIPHER",
+                "autonomyLevel": 1,
+                "trustScore": 78.0,
+                "status": "idle",
+                "lastAction": "PCI-DSS compliance and payment security",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "payment_gateway",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "comms",
+                "type": "communications",
+                "name": "PULSE",
+                "autonomyLevel": 2,
+                "trustScore": 82.0,
+                "status": "idle",
+                "lastAction": "Customer communications and issue notifications",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "comms_hub",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "exec_strategy",
+                "type": "executive_strategy",
+                "name": "SUMMIT",
+                "autonomyLevel": 1,
+                "trustScore": 88.0,
+                "status": "idle",
+                "lastAction": "Executive strategy for revenue and operations",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+        ],
+
+        workflows=[
+            # Order records: order_management <-> payment_gateway
+            {"id": "wf-001", "type": "ehr_record", "sourceId": "order_management", "destId": "payment_gateway", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.10},
+            {"id": "wf-002", "type": "ehr_record", "sourceId": "order_management", "destId": "payment_gateway", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.40},
+            {"id": "wf-003", "type": "ehr_record", "sourceId": "order_management", "destId": "payment_gateway", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.70},
+            {"id": "wf-004", "type": "ehr_record", "sourceId": "order_management", "destId": "payment_gateway", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.30, "progress": 0.05},
+            # Payment transactions: payment_gateway -> order_management
+            {"id": "wf-005", "type": "prescription", "sourceId": "payment_gateway", "destId": "order_management", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.25, "progress": 0.20},
+            {"id": "wf-006", "type": "prescription", "sourceId": "payment_gateway", "destId": "order_management", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.35, "progress": 0.55},
+            {"id": "wf-007", "type": "prescription", "sourceId": "payment_gateway", "destId": "order_management", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.80},
+            # Comm packets: customer communications
+            {"id": "wf-008", "type": "comm_packet", "sourceId": "comms_hub", "destId": "order_management", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.30},
+            {"id": "wf-009", "type": "comm_packet", "sourceId": "comms_hub", "destId": "order_management", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.60},
+            {"id": "wf-010", "type": "comm_packet", "sourceId": "comms_hub", "destId": "payment_gateway", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.15},
+            {"id": "wf-011", "type": "comm_packet", "sourceId": "comms_hub", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.08, "progress": 0.45},
+            # Approval requests
+            {"id": "wf-012", "type": "approval_request", "sourceId": "order_management", "destId": "orchestration_center", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.60, "progress": 0.25},
+            {"id": "wf-013", "type": "approval_request", "sourceId": "payment_gateway", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.55, "progress": 0.50},
+            # Fulfillment requests
+            {"id": "wf-014", "type": "staffing_request", "sourceId": "order_management", "destId": "fulfillment_ops", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.35},
+            {"id": "wf-015", "type": "staffing_request", "sourceId": "order_management", "destId": "fulfillment_ops", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.65},
+            {"id": "wf-016", "type": "staffing_request", "sourceId": "payment_gateway", "destId": "fulfillment_ops", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.10},
+            # Escalations
+            {"id": "wf-017", "type": "escalation", "sourceId": "orchestration_center", "destId": "cloud_platform", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.40, "progress": 0.20},
+            # Failover commands
+            {"id": "wf-018", "type": "failover_cmd", "sourceId": "backup_infra", "destId": "cloud_platform", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.90},
+            # Additional mixed workflows
+            {"id": "wf-019", "type": "ehr_record", "sourceId": "order_management", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.18, "progress": 0.50},
+            {"id": "wf-020", "type": "comm_packet", "sourceId": "comms_hub", "destId": "fulfillment_ops", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.75},
+        ],
+
+        dependency_edges=[
+            ("order_management", "cloud_platform"),
+            ("order_management", "orchestration_center"),
+            ("order_management", "fulfillment_ops"),
+            ("payment_gateway", "cloud_platform"),
+            ("payment_gateway", "order_management"),
+            ("payment_gateway", "orchestration_center"),
+            ("comms_hub", "cloud_platform"),
+            ("orchestration_center", "cloud_platform"),
+            ("orchestration_center", "comms_hub"),
+            ("fulfillment_ops", "comms_hub"),
+        ],
+
+        vocabulary={
+            "service_unit": "customer order",
+            "primary_system": "Order Management",
+            "secondary_system": "Payment Gateway",
+            "workflow_type_primary": "order record",
+            "workflow_type_secondary": "payment transaction",
+            "staffing_role": "fulfillment staff",
+            "incident_name": "Commerce Operations Incident",
+            "outage_label": "Service Disruption",
+            "org_unit": "channel",
+        },
+
+        compliance_frameworks=["PCI-DSS", "GDPR", "SOC2 Type II", "ISO 27001"],
+
+        uipath_processes=[
+            "Order_Incident_Escalation",
+            "Payment_Approval_Chain",
+            "Commerce_Crisis_Response",
+            "Fulfillment_Emergency_Staffing",
+            "Trust_Recovery_Protocol",
+        ],
+
+        outage_presets=[
+            {
+                "id": "cloud_outage",
+                "name": "Cloud Platform Outage",
+                "buildingId": "cloud_platform",
+                "severity": "full",
+                "description": "Cloud commerce platform failure — cascades to order management and payment systems",
+            },
+            {
+                "id": "payment_failure",
+                "name": "Payment Gateway Failure",
+                "buildingId": "payment_gateway",
+                "severity": "full",
+                "description": "Payment processing failure — checkout blocked, revenue at risk",
+            },
+            {
+                "id": "fulfillment_disruption",
+                "name": "Warehouse System Disruption",
+                "buildingId": "fulfillment_ops",
+                "severity": "partial",
+                "description": "Fulfillment system degradation — order processing slowed, SLA breaches imminent",
+            },
+        ],
+
+        industry_context=(
+            "E-commerce operations require continuous availability of payment processing, order "
+            "management, and fulfillment systems. Downtime directly impacts revenue, customer trust, "
+            "and SLA compliance under PCI-DSS and GDPR frameworks."
+        ),
+    )

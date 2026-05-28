@@ -21,6 +21,7 @@ from models.actions import (
 )
 from models.state import SimulationState, UiPathStatus
 from orchestration.webhook_handler import WebhookHandler
+from scenarios.registry import list_scenarios, get_scenario
 from simulation.engine import engine
 
 logger = logging.getLogger(__name__)
@@ -242,3 +243,45 @@ async def reset_scenario() -> Dict[str, Any]:
     """Reset the simulation to initial state for a new scenario run."""
     engine.reset_scenario()
     return {"success": True, "scenarioId": engine.scenario_tracker.scenario_id}
+
+
+# ─── Scenario Registry ────────────────────────────────────────────────────────
+
+@router.get("/api/scenarios")
+async def get_scenarios() -> Dict[str, Any]:
+    """Return all available scenarios."""
+    return {"scenarios": list_scenarios()}
+
+
+@router.post("/api/scenario/select")
+async def select_scenario(request: Request) -> Dict[str, Any]:
+    """Switch to a different scenario and reset simulation state."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    scenario_id = body.get("scenarioId")
+    if not scenario_id:
+        raise HTTPException(status_code=400, detail="Missing scenarioId")
+
+    result = engine.select_scenario(scenario_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.get("/api/scenario/active")
+async def get_active_scenario() -> Dict[str, Any]:
+    """Return the currently active scenario metadata."""
+    return {
+        "scenarioId": engine.active_scenario_id,
+        "scenario": {
+            "id": engine.active_scenario.id,
+            "name": engine.active_scenario.name,
+            "icon": engine.active_scenario.icon,
+            "color": engine.active_scenario.color,
+            "industry": engine.active_scenario.industry,
+            "outagePresets": engine.active_scenario.outage_presets,
+        },
+    }

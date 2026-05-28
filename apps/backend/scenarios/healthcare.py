@@ -1,0 +1,290 @@
+"""
+Healthcare scenario definition for Maestro City.
+Extracted from the original simulation/city_config.py.
+"""
+from scenarios.base import ScenarioDefinition
+
+
+def get_scenario() -> ScenarioDefinition:
+    return ScenarioDefinition(
+        id="healthcare",
+        name="Healthcare Enterprise",
+        tagline="Manage a hospital network's digital infrastructure under operational stress.",
+        description=(
+            "Simulate a large healthcare enterprise managing EHR systems, pharmacy dispensing, "
+            "and clinical communications across a hospital network. Respond to system outages "
+            "that directly impact patient safety and regulatory compliance."
+        ),
+        industry="Healthcare",
+        icon="🏥",
+        color="#10B981",
+
+        buildings=[
+            {
+                "id": "hospital",
+                "type": "hospital",
+                "name": "City General Hospital",
+                "pos": {"x": 1, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 85.0,
+                "staffingLevel": 75.0,
+                "trustLevel": 90.0,
+                "dependencies": ["cloud_datacenter", "orchestration_center", "staffing_hr"],
+                "queueDepth": 12,
+                "recoveryCapacity": 60.0,
+            },
+            {
+                "id": "pharmacy",
+                "type": "pharmacy",
+                "name": "Central Pharmacy",
+                "pos": {"x": 6, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 90.0,
+                "staffingLevel": 80.0,
+                "trustLevel": 88.0,
+                "dependencies": ["cloud_datacenter", "hospital", "orchestration_center"],
+                "queueDepth": 8,
+                "recoveryCapacity": 70.0,
+            },
+            {
+                "id": "cloud_datacenter",
+                "type": "cloud_datacenter",
+                "name": "CloudCore Data Center",
+                "pos": {"x": 14, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 95.0,
+                "staffingLevel": 60.0,
+                "trustLevel": 95.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+            {
+                "id": "comms_hub",
+                "type": "comms_hub",
+                "name": "Communications Hub",
+                "pos": {"x": 10, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 88.0,
+                "staffingLevel": 65.0,
+                "trustLevel": 92.0,
+                "dependencies": ["cloud_datacenter"],
+                "queueDepth": 5,
+                "recoveryCapacity": 80.0,
+            },
+            {
+                "id": "orchestration_center",
+                "type": "orchestration_center",
+                "name": "Maestro Orchestration Center",
+                "pos": {"x": 18, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 92.0,
+                "staffingLevel": 70.0,
+                "trustLevel": 94.0,
+                "dependencies": ["cloud_datacenter", "comms_hub"],
+                "queueDepth": 3,
+                "recoveryCapacity": 85.0,
+            },
+            {
+                "id": "staffing_hr",
+                "type": "staffing_hr",
+                "name": "Staffing & Operations",
+                "pos": {"x": 22, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 78.0,
+                "staffingLevel": 85.0,
+                "trustLevel": 80.0,
+                "dependencies": ["comms_hub"],
+                "queueDepth": 15,
+                "recoveryCapacity": 50.0,
+            },
+            {
+                "id": "backup_infra",
+                "type": "backup_infra",
+                "name": "Failover Infrastructure",
+                "pos": {"x": 26, "y": 1, "w": 2, "h": 2},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 40.0,
+                "staffingLevel": 50.0,
+                "trustLevel": 85.0,
+                "dependencies": [],
+                "queueDepth": 0,
+                "recoveryCapacity": 100.0,
+            },
+        ],
+
+        agents=[
+            {
+                "id": "ops_coord",
+                "type": "operations_coordinator",
+                "name": "ARIA",
+                "autonomyLevel": 2,
+                "trustScore": 85.0,
+                "status": "idle",
+                "lastAction": "Monitoring queue depths",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "incident_resp",
+                "type": "incident_response",
+                "name": "SENTINEL",
+                "autonomyLevel": 2,
+                "trustScore": 90.0,
+                "status": "idle",
+                "lastAction": "All systems nominal",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "cloud_datacenter",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "compliance",
+                "type": "compliance",
+                "name": "VERITAS",
+                "autonomyLevel": 1,
+                "trustScore": 78.0,
+                "status": "idle",
+                "lastAction": "Compliance checks passed",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "hospital",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "comms",
+                "type": "communications",
+                "name": "ECHO",
+                "autonomyLevel": 2,
+                "trustScore": 82.0,
+                "status": "idle",
+                "lastAction": "Alerts synchronized",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "comms_hub",
+                "targetBuildingId": None,
+            },
+            {
+                "id": "exec_strategy",
+                "type": "executive_strategy",
+                "name": "APEX",
+                "autonomyLevel": 1,
+                "trustScore": 88.0,
+                "status": "idle",
+                "lastAction": "KPIs within targets",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+        ],
+
+        workflows=[
+            # EHR Records: hospital -> pharmacy
+            {"id": "wf-001", "type": "ehr_record", "sourceId": "hospital", "destId": "pharmacy", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.10},
+            {"id": "wf-002", "type": "ehr_record", "sourceId": "hospital", "destId": "pharmacy", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.40},
+            {"id": "wf-003", "type": "ehr_record", "sourceId": "hospital", "destId": "pharmacy", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.70},
+            {"id": "wf-004", "type": "ehr_record", "sourceId": "hospital", "destId": "pharmacy", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.30, "progress": 0.05},
+            # Prescriptions: pharmacy -> hospital
+            {"id": "wf-005", "type": "prescription", "sourceId": "pharmacy", "destId": "hospital", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.25, "progress": 0.20},
+            {"id": "wf-006", "type": "prescription", "sourceId": "pharmacy", "destId": "hospital", "priority": "critical", "status": "flowing", "automationEligible": True, "risk": 0.35, "progress": 0.55},
+            {"id": "wf-007", "type": "prescription", "sourceId": "pharmacy", "destId": "hospital", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.15, "progress": 0.80},
+            # Comm packets: comms_hub -> hospital
+            {"id": "wf-008", "type": "comm_packet", "sourceId": "comms_hub", "destId": "hospital", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.30},
+            {"id": "wf-009", "type": "comm_packet", "sourceId": "comms_hub", "destId": "hospital", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.60},
+            {"id": "wf-010", "type": "comm_packet", "sourceId": "comms_hub", "destId": "pharmacy", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.15},
+            {"id": "wf-011", "type": "comm_packet", "sourceId": "comms_hub", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.08, "progress": 0.45},
+            # Approval requests
+            {"id": "wf-012", "type": "approval_request", "sourceId": "hospital", "destId": "orchestration_center", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.60, "progress": 0.25},
+            {"id": "wf-013", "type": "approval_request", "sourceId": "pharmacy", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.55, "progress": 0.50},
+            # Staffing requests
+            {"id": "wf-014", "type": "staffing_request", "sourceId": "hospital", "destId": "staffing_hr", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.35},
+            {"id": "wf-015", "type": "staffing_request", "sourceId": "hospital", "destId": "staffing_hr", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.65},
+            {"id": "wf-016", "type": "staffing_request", "sourceId": "pharmacy", "destId": "staffing_hr", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.10, "progress": 0.10},
+            # Escalations
+            {"id": "wf-017", "type": "escalation", "sourceId": "orchestration_center", "destId": "cloud_datacenter", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.40, "progress": 0.20},
+            # Failover commands
+            {"id": "wf-018", "type": "failover_cmd", "sourceId": "backup_infra", "destId": "cloud_datacenter", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.90},
+            # Additional mixed workflows
+            {"id": "wf-019", "type": "ehr_record", "sourceId": "hospital", "destId": "orchestration_center", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.18, "progress": 0.50},
+            {"id": "wf-020", "type": "comm_packet", "sourceId": "comms_hub", "destId": "staffing_hr", "priority": "low", "status": "flowing", "automationEligible": True, "risk": 0.05, "progress": 0.75},
+            {"id": "wf-021", "type": "prescription", "sourceId": "pharmacy", "destId": "orchestration_center", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.28, "progress": 0.12},
+            {"id": "wf-022", "type": "approval_request", "sourceId": "hospital", "destId": "staffing_hr", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.45, "progress": 0.38},
+            {"id": "wf-023", "type": "ehr_record", "sourceId": "hospital", "destId": "pharmacy", "priority": "high", "status": "flowing", "automationEligible": True, "risk": 0.22, "progress": 0.85},
+            {"id": "wf-024", "type": "comm_packet", "sourceId": "comms_hub", "destId": "hospital", "priority": "medium", "status": "flowing", "automationEligible": True, "risk": 0.06, "progress": 0.22},
+        ],
+
+        dependency_edges=[
+            ("hospital", "cloud_datacenter"),
+            ("hospital", "orchestration_center"),
+            ("hospital", "staffing_hr"),
+            ("pharmacy", "cloud_datacenter"),
+            ("pharmacy", "hospital"),
+            ("pharmacy", "orchestration_center"),
+            ("comms_hub", "cloud_datacenter"),
+            ("orchestration_center", "cloud_datacenter"),
+            ("orchestration_center", "comms_hub"),
+            ("staffing_hr", "comms_hub"),
+        ],
+
+        vocabulary={
+            "service_unit": "patient",
+            "primary_system": "Hospital",
+            "secondary_system": "Pharmacy",
+            "workflow_type_primary": "EHR record",
+            "workflow_type_secondary": "prescription",
+            "staffing_role": "clinical staff",
+            "incident_name": "Clinical Operations Incident",
+            "outage_label": "System Outage",
+            "org_unit": "department",
+        },
+
+        compliance_frameworks=["HIPAA", "SOC2", "Joint Commission"],
+
+        uipath_processes=[
+            "Incident_Escalation",
+            "Approval_Chain",
+            "Crisis_Response",
+            "Emergency_Staffing",
+            "Trust_Recovery_Protocol",
+        ],
+
+        outage_presets=[
+            {
+                "id": "cloud_outage",
+                "name": "Cloud Infrastructure Outage",
+                "buildingId": "cloud_datacenter",
+                "severity": "full",
+                "description": "Simulates total cloud datacenter failure triggering cascade to hospital and pharmacy",
+            },
+            {
+                "id": "hospital_partial",
+                "name": "Hospital System Degradation",
+                "buildingId": "hospital",
+                "severity": "partial",
+                "description": "Partial hospital system failure — EHR access impacted, ambulance rerouting required",
+            },
+            {
+                "id": "comms_failure",
+                "name": "Communications Hub Failure",
+                "buildingId": "comms_hub",
+                "severity": "full",
+                "description": "Total communications hub failure — isolates hospital and pharmacy from orchestration",
+            },
+        ],
+
+        industry_context=(
+            "Healthcare enterprise operations require 24/7 availability across patient records, "
+            "pharmacy dispensing, and clinical communications. Downtime directly impacts patient "
+            "safety and regulatory compliance under HIPAA and Joint Commission standards."
+        ),
+    )
