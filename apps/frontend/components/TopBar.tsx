@@ -65,6 +65,8 @@ export default function TopBar() {
   const setApprovalsOpen = useGameStore((s) => s.setApprovalsOpen);
   const fetchApprovals = useGameStore((s) => s.fetchApprovals);
   const approvalCount = useGameStore((s) => s.approvalCount);
+  const activeScenario = useGameStore((s) => s.activeScenario);
+  const setScenarioSelected = useGameStore((s) => s.setScenarioSelected);
 
   function handleOpenReports() {
     setReportsOpen(true);
@@ -99,6 +101,28 @@ export default function TopBar() {
               MAESTRO CITY
             </span>
           </div>
+
+          {/* Scenario badge */}
+          {activeScenario && (
+            <>
+              <div className="h-4 w-px bg-border-dim hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: activeScenario.color }}
+                />
+                <span className="text-text-secondary text-xs font-medium hidden sm:inline">
+                  {activeScenario.icon} {activeScenario.name}
+                </span>
+                <button
+                  onClick={() => setScenarioSelected(false)}
+                  className="text-xs px-2 py-0.5 rounded border border-border-dim text-text-dim hover:border-border-bright hover:text-text-secondary transition-colors"
+                >
+                  Change
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="h-4 w-px bg-border-dim hidden sm:block" />
 

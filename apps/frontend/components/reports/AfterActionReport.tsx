@@ -2,6 +2,7 @@
 
 import { Download } from 'lucide-react';
 import type { AfterActionReport } from '@/lib/reports';
+import { useGameStore } from '@/lib/store';
 
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -47,9 +48,35 @@ interface Props {
 
 export default function AfterActionReportView({ report }: Props) {
   const allMetricKeys = Object.keys(report.metrics.start);
+  const activeScenario = useGameStore((s) => s.activeScenario);
 
   return (
     <div className="space-y-6 p-6">
+      {/* Scenario context banner */}
+      {activeScenario && (
+        <div
+          className="rounded-xl border p-4 flex items-center gap-3"
+          style={{
+            background: `${activeScenario.color}11`,
+            borderColor: `${activeScenario.color}44`,
+          }}
+        >
+          <span className="text-2xl">{activeScenario.icon}</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-text-primary font-bold text-sm">{activeScenario.name}</span>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: `${activeScenario.color}22`, color: activeScenario.color }}
+              >
+                {activeScenario.industry}
+              </span>
+            </div>
+            <p className="text-text-dim text-xs mt-0.5">Scenario After-Action Report</p>
+          </div>
+        </div>
+      )}
+
       {/* Download button */}
       <div className="flex justify-end">
         <button

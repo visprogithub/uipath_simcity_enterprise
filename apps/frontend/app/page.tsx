@@ -10,6 +10,7 @@ import AlertFeed from '@/components/panels/AlertFeed';
 import ControlsPanel from '@/components/panels/ControlsPanel';
 import Timeline from '@/components/timeline/Timeline';
 import ReportsModal from '@/components/reports/ReportsModal';
+import ScenarioSelector from '@/components/ScenarioSelector';
 import { useGameStore } from '@/lib/store';
 
 function StuckWorkflowsBadge() {
@@ -56,6 +57,16 @@ export default function GamePage() {
   const setApprovalsOpen = useGameStore((s) => s.setApprovalsOpen);
   const approvalsOpen = useGameStore((s) => s.approvalsOpen);
 
+  const scenarioSelected = useGameStore((s) => s.scenarioSelected);
+  const scenarioLoading = useGameStore((s) => s.scenarioLoading);
+  const availableScenarios = useGameStore((s) => s.availableScenarios);
+  const fetchScenarios = useGameStore((s) => s.fetchScenarios);
+
+  // Fetch scenarios on mount
+  useEffect(() => {
+    fetchScenarios();
+  }, [fetchScenarios]);
+
   // Poll for approvals every 5 seconds when simulation is running
   useEffect(() => {
     if (isPaused) return;
@@ -79,6 +90,24 @@ export default function GamePage() {
     }
     prevCriticalRef.current = hasCritical;
   }, [simState, approvalsOpen, fetchApprovals, setApprovalsOpen]);
+
+  // Show scenario selector if no scenario is selected
+  if (!scenarioSelected) {
+    return <ScenarioSelector />;
+  }
+
+  // Full-screen loading state while a scenario is being loaded
+  if (scenarioLoading) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-screen"
+        style={{ background: '#0F172A' }}
+      >
+        <div className="w-10 h-10 rounded-full border-2 border-accent-blue border-t-transparent animate-spin mb-4" />
+        <p className="text-text-secondary text-lg">Loading scenario...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-bg-base overflow-hidden">

@@ -13,6 +13,29 @@ import type {
   ProcessTemplate,
 } from '@/lib/reports';
 
+// Scenario types
+export interface OutagePreset {
+  id: string;
+  name: string;
+  buildingId: string;
+  severity: string;
+  description: string;
+}
+
+export interface ScenarioInfo {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  industry: string;
+  icon: string;
+  color: string;
+  buildingCount: number;
+  agentCount: number;
+  complianceFrameworks: string[];
+  outagePresets: OutagePreset[];
+}
+
 export interface GameStore {
   // State
   simState: SimulationState | null;
@@ -22,6 +45,12 @@ export interface GameStore {
   isPaused: boolean;
   connectionStatus: ConnectionStatus;
   tickHistory: SimulationMetrics[];
+
+  // Scenario state
+  availableScenarios: ScenarioInfo[];
+  activeScenario: ScenarioInfo | null;
+  scenarioSelected: boolean;
+  scenarioLoading: boolean;
 
   // Actions
   setSimState: (state: SimulationState) => void;
@@ -54,6 +83,11 @@ export interface GameStore {
   fetchReports: () => Promise<void>;
   resetScenario: () => Promise<void>;
 
+  // Scenario actions
+  fetchScenarios: () => Promise<void>;
+  selectScenario: (id: string) => Promise<void>;
+  setScenarioSelected: (v: boolean) => void;
+
   // Agent Builder state
   agentBuilderOpen: boolean;
   setAgentBuilderOpen: (v: boolean) => void;
@@ -83,6 +117,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   connectionStatus: 'connecting',
   tickHistory: [],
   _sendFn: null,
+
+  // Scenario initial state
+  availableScenarios: [],
+  activeScenario: null,
+  scenarioSelected: false,
+  scenarioLoading: false,
 
   // Reports initial state
   reportsOpen: false,
@@ -219,4 +259,59 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.error('[store] fetchApprovals failed:', err);
     }
   },
+
+  fetchScenarios: async () => {
+    set({ scenarioLoading: true });
+    try {
+      const res = await fetch('http://localhost:8000/api/scenarios');
+      if (!res.ok) throw new Error('Failed to fetch scenarios');
+      const data = await res.json();
+      const scenarios: ScenarioInfo[] = data.scenarios ?? [];
+      set({ availableScenarios: scenarios });
+
+      // Also check if there's an active scenario (restore on page reload)
+      try {
+        const activeRes = await fetch('http://localhost:8000/api/scenario/active');
+        if (activeRes.ok) {
+          const activeData = await activeRes.json();
+          if (activeData.scenarioId && activeData.scenario) {
+            // Find the full scenario info from availableScenarios (or use returned data)
+            const full = scenarios.find((s) => s.id === activeData.scenarioId) ?? null;
+            if (full) {
+              set({ activeScenario: full, scenarioSelected: true });
+            }
+          }
+        }
+      } catch {
+        // Silently ignore — no active scenario is fine
+      }
+    } catch (err) {
+      console.error('[store] fetchScenarios failed:', err);
+    } finally {
+      set({ scenarioLoading: false });
+    }
+  },
+
+  selectScenario: async (id: string) => {
+    set({ scenarioLoading: true });
+    try {
+      const res = await fetch('http://localhost:8000/api/scenario/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenarioId: id }),
+      });
+      if (!res.ok) throw new Error('Failed to select scenario');
+      const scenarios = get().availableScenarios;
+      const selected = scenarios.find((s) => s.id === id) ?? null;
+      set({ activeScenario: selected, scenarioSelected: true });
+      // Reset old simulation data
+      await get().resetScenario();
+    } catch (err) {
+      console.error('[store] selectScenario failed:', err);
+    } finally {
+      set({ scenarioLoading: false });
+    }
+  },
+
+  setScenarioSelected: (v: boolean) => set({ scenarioSelected: v }),
 }));
