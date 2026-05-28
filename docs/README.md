@@ -1,11 +1,13 @@
 # Maestro City — UiPath AgentHack Submission
 
-Maestro City is a real-time city management simulation that demonstrates **human-in-the-loop
-AI orchestration** using UiPath Maestro and Orchestrator. You manage a living digital
-city powered by five autonomous AI agents. When the city goes wrong — outages cascade,
-staff burn out, workflows jam — UiPath automation kicks in: escalating incidents, routing
-approvals, coordinating crisis response, and rebuilding trust. You watch it all happen,
-intervene when needed, and decide how much authority to give the machines.
+Maestro City is a real-time enterprise operations simulation that demonstrates **human-in-the-loop
+AI orchestration** using the UiPath platform. You select an industry scenario, manage a living
+city of interconnected systems, and watch five autonomous AI agents respond to cascading failures
+— escalating incidents, routing approvals, coordinating crisis response, and rebuilding trust.
+
+The simulation is backed by real UiPath integrations: Agent Builder for agent definitions,
+Orchestrator for job execution, Maestro for human approval gates, and the Coding Agent for
+AI-generated XAML workflows. It runs fully without UiPath credentials for reliable demos.
 
 Built for the **UiPath AgentHack** hackathon.
 
@@ -15,99 +17,82 @@ Built for the **UiPath AgentHack** hackathon.
 
 | Criterion | Maestro City Feature | Where to See It |
 |-----------|---------------------|-----------------|
-| UiPath Agent Builder | 5 agents defined with full system prompts, tools, and triggers | Agent Builder panel in Maestro UI; [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md) |
-| API Workflows | 6 enterprise system endpoints (EHR, pharmacy, staffing, infrastructure, outage notify, escalation notify) | `/api/enterprise/*` |
-| Maestro Orchestration | Phase-aware agent coordination routed through UiPath Maestro | Main city view + Agent Builder panel |
+| UiPath Agent Builder | 5 agents defined with full system prompts, tool schemas, and trigger conditions | Agent Builder panel in Maestro UI; [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md) |
+| API Workflows | 6 enterprise system endpoints (EHR, pharmacy, staffing, infrastructure, outage notify, escalation notify) wired to Integration Service triggers | `/api/enterprise/*` |
+| Maestro Orchestration | Phase-aware agent coordination routed through UiPath Maestro, scenario-specific process names | Main city view + Agent Builder panel |
 | Human Approval Step | VERITAS compliance agent gates high-risk actions and triggers approval modal | Click any building in crisis phase; check Maestro action items |
-| Dynamic Rerouting | ARIA reroutes workflows to backup_infra with visual orange flash on city grid | City view during degrading phase |
+| Dynamic Rerouting | ARIA reroutes workflows to backup infrastructure with visual flash on city grid | City view during degrading phase |
 | Long-running Workflows | Stuck workflow badge + stuck counter visible on city HUD | Top-left badge during queued phase |
-| Coding Agents Bonus | Claude (`claude-sonnet-4-6`) generates context-aware XAML dynamically | "Coding Agent" button in toolbar; [docs/CODING_AGENT.md](./CODING_AGENT.md) |
-| After-Action Report | Enterprise PDF/JSON report generated post-scenario with numbered recommendations | Reports → After-Action tab; `GET /api/report/after-action` |
+| Coding Agents Bonus | GPT-4o generates context-aware UiPath XAML dynamically from live simulation state | "Coding Agent" button in toolbar; [docs/CODING_AGENT.md](./CODING_AGENT.md) |
+| After-Action Report | Scenario-specific enterprise PDF/JSON report with numbered recommendations | Reports → After-Action tab; `GET /api/report/after-action` |
+
+---
+
+## Four Enterprise Scenarios
+
+Select your scenario at the landing screen. Each scenario is a complete independent
+simulation with industry-appropriate buildings, agents, compliance frameworks, UiPath
+process names, and outage presets.
+
+| Scenario | Industry | Primary Crisis | Compliance |
+|----------|----------|----------------|------------|
+| 🏥 Healthcare Enterprise | Healthcare | EHR/pharmacy cascade, patient safety | HIPAA, HL7 FHIR, SOC 2 |
+| 📈 Financial Services | Finance | Trading halt, risk system failure | SOX, MiFID II, Basel III |
+| 🛒 Retail & E-commerce | Retail | Order management, payment gateway outage | PCI-DSS, GDPR, SOC 2 |
+| 🏭 Manufacturing & Industry 4.0 | Manufacturing | SCADA failure, supply chain disruption | ISO 9001, IEC 62443, OSHA |
+
+Switching scenarios resets the simulation and reconfigures all buildings, agents, workflows,
+and generated report vocabulary for the selected industry.
 
 ---
 
 ## Enterprise Deliverables
 
-A simulation alone doesn't justify enterprise investment. After every scenario run, Maestro
-City generates four **concrete, actionable artifacts** that cross back into the real world:
+After every scenario run, Maestro City generates four **concrete, actionable artifacts**:
 
 ### 1. After-Action Report (`GET /api/report/after-action`)
-A structured JSON + narrative document that answers what a post-incident review board asks:
-- Which systems failed first and why (building health timelines)
-- What interventions worked vs. backfired (per-action stability delta)
-- How much faster recovery was with automation vs. without (modeled counterfactual)
-- What percentage of recovery was automation vs. human intervention
-- Specific numbered recommendations for process improvement
-
-**Enterprise use**: Present to the board as evidence for AI autonomy investment. Replace
-the "gut feel" post-mortem with simulation-validated findings.
+Structured incident review document with scenario-specific terminology:
+- Which systems failed first and cascade sequence
+- Per-intervention stability delta (what worked vs. backfired)
+- Automation-vs-human recovery breakdown with counterfactual
+- Numbered recommendations for process improvement
 
 ### 2. Operational Runbook (`GET /api/report/runbook`)
-A validated, step-by-step incident response procedure in both structured JSON and Markdown,
-directly importable into PagerDuty, ServiceNow, or Confluence:
-- Trigger conditions with observed metric thresholds from the actual scenario
-- Immediate / Short-term / Recovery actions in priority order
-- Full escalation chain (Level 1 → 2 → 3) with UiPath process names
-- Recovery milestones with target vs. achieved timings
-- "SIMULATION VALIDATED" badge when recovery was achieved
-
-**Enterprise use**: This replaces the handwritten runbook in the wiki that nobody reads.
-The steps are drawn from what *actually worked* in the simulation, not from what someone
-thought would work in a planning meeting.
+Validated step-by-step incident response procedure importable into PagerDuty, ServiceNow,
+or Confluence. Includes scenario-specific escalation chain with UiPath process names,
+trigger conditions drawn from observed metric thresholds, and `SIMULATION VALIDATED` badge.
 
 ### 3. Autonomy Calibration Certificate (`GET /api/report/autonomy-calibration`)
-A per-agent readiness assessment with evidence trail:
-- For each of the 5 agents: current level, recommended level, accuracy %, trust score
-- Evidence: correct detections, counterproductive actions, stability contribution in points
-- Overall org assessment: READY FOR EXPANDED AUTOMATION / ADEQUATE / REQUIRES OVERSIGHT
-- Specific rationale for each upgrade or downgrade recommendation
-
-**Enterprise use**: Justify to a CISO or CTO why it is safe to increase autonomy on
-incident response from Level 2 to Level 3. The certificate documents simulation-validated
-readiness with auditable evidence, not anecdote.
+Per-agent readiness assessment with evidence trail: current level, recommended level,
+accuracy %, trust score, and specific rationale for each upgrade/downgrade recommendation.
 
 ### 4. UiPath Process Templates (`GET /api/report/process-templates`)
 Importable UiPath Studio project files (XAML + project.json) for all 5 automation processes,
-pre-configured with the correct input/output arguments as demonstrated in the simulation:
-- `Incident_Escalation`, `Approval_Chain`, `Crisis_Response`, `Emergency_Staffing`,
-  `Trust_Recovery_Protocol`
-- Each template has a scaffolded XAML workflow with correct argument definitions,
-  log message activities, and conditional branching placeholders
-- A README in each project explains where to add your organisation's real logic
-
-**Enterprise use**: Instead of starting from a blank UiPath Studio canvas, teams get a
-documented, simulation-tested process skeleton that already has the right argument names,
-flow structure, and decision points — configured specifically for healthcare operations.
+named to match the active scenario's Orchestrator process names.
 
 ---
 
 ## What It Demonstrates
 
-- **Agentic Orchestration**: Five specialised agents (ARIA, SENTINEL, VERITAS, ECHO, APEX)
-  operate autonomously at configurable autonomy levels (0 = fully manual, 4 = fully
-  autonomous). Their decisions are routed through UiPath Orchestrator as real automation jobs.
-  Each agent is configured in UiPath Agent Builder with detailed system prompts, tool schemas,
-  and trigger conditions — see [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md) for
-  the complete click-by-click setup guide.
+- **Agentic Orchestration**: Five specialised agents operate autonomously at configurable
+  autonomy levels (0 = fully manual, 4 = fully autonomous). Each agent is configured in
+  UiPath Agent Builder with detailed system prompts, tool schemas, and trigger conditions.
+  See [docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md).
 
 - **Human-in-the-Loop**: High-risk decisions surface as UiPath Maestro action items.
-  A human approver in the Maestro UI can approve or reject them; the simulation responds
-  immediately.
+  A human approver can approve or reject them; the simulation responds immediately.
 
 - **Real-Time Feedback**: Every UiPath job start and completion is reflected live in the
-  city grid via WebSocket — watch a staffing robot deploy, see an escalation resolve a
-  cascade, observe trust scores recover after a compliance audit.
+  city grid via WebSocket — watch automation jobs deploy, see escalations resolve cascades,
+  observe trust scores recover after compliance audits.
 
-- **Graceful Degradation**: The simulation runs fully without UiPath credentials. Plug in
-  your credentials at any time to switch from simulation-only mode to live automation.
+- **Coding Agent**: The "Coding Agent" button uses OpenAI GPT-4o to generate context-aware
+  UiPath XAML workflows based on the live simulation state. A workflow generated during a
+  crisis phase differs structurally from one generated during stable operations.
+  See [docs/CODING_AGENT.md](./CODING_AGENT.md).
 
-- **Coding Agent**: The toolbar "Coding Agent" button invokes Claude (`claude-sonnet-4-6`)
-  to generate context-aware UiPath XAML workflows based on the live simulation state.
-  A workflow generated during a crisis phase differs structurally from one generated during
-  stable operations — see [docs/CODING_AGENT.md](./CODING_AGENT.md) for details.
-
-- **Actionable Outputs**: Every scenario produces four enterprise deliverables (above) that
-  cross back into real operational decisions — the simulation is the means, not the end.
+- **Graceful Degradation**: Runs fully without UiPath credentials. All features work in
+  simulation mode; plug in credentials to switch to live automation.
 
 ---
 
@@ -119,15 +104,17 @@ flow structure, and decision points — configured specifically for healthcare o
 │                                                                             │
 │   Browser (Next.js + PixiJS)                                               │
 │   ┌─────────────────────────────────────────────────────────────────────┐  │
-│   │  City Grid (7 buildings, 24 workflows, 5 agent drones)             │  │
+│   │  Scenario Selector (landing)                                        │  │
+│   │  City Grid (7 buildings, workflows, 5 agent drones)                │  │
 │   │  Live metrics panel  │  Agent HUD  │  UiPath status panel          │  │
 │   └──────────────────────────┬──────────────────────────────────────────┘  │
 │                              │ WebSocket (ws://localhost:8000/ws)           │
 │   ┌──────────────────────────▼──────────────────────────────────────────┐  │
 │   │  FastAPI Backend (Python)                                           │  │
+│   │  • Scenario registry (4 enterprise scenarios, plug-in architecture)│  │
 │   │  • Simulation engine (tick loop, building health, cascade logic)   │  │
 │   │  • Agent decision engine (5 agent types × 5 autonomy levels)       │  │
-│   │  • UiPath client (OAuth 2.0, job triggering, webhook receiver)     │  │
+│   │  • UiPath client (OAuth 2.0, StartJobs, Integration Service)       │  │
 │   │  • State broadcaster (JSON over WebSocket every tick)              │  │
 │   └──────────────────────────┬──────────────────────────────────────────┘  │
 └─────────────────────────────│────────────────────────────────────────────┘
@@ -136,43 +123,53 @@ flow structure, and decision points — configured specifically for healthcare o
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  UiPath Cloud                                                               │
-│  • Orchestrator: 5 automation processes in MaestroCity folder              │
+│  • Agent Builder: 5 agent definitions with system prompts and tools        │
+│  • Orchestrator: scenario-specific automation processes in MaestroCity folder│
 │  • Maestro: action items, approvals, agent catalog                         │
-│  • Serverless robots: execute processes on demand                          │
+│  • Integration Service: API triggers for enterprise system connections      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### The Seven Buildings
+### City Layout
 
-| Building                  | ID                    | Role                                           |
-|---------------------------|-----------------------|------------------------------------------------|
-| City General Hospital     | `hospital`            | Patient workflow hub; highest staffing demand  |
-| Central Pharmacy          | `pharmacy`            | Prescription processing; depends on hospital   |
-| CloudCore Data Center     | `cloud_datacenter`    | Core infrastructure; cascade origin point      |
-| Communications Hub        | `comms_hub`           | Alert routing; bridges data center to rest     |
-| Maestro Orchestration Center | `orchestration_center` | UiPath integration node; approval gateway   |
-| Staffing & Operations     | `staffing_hr`         | Human resource dispatch                        |
-| Failover Infrastructure   | `backup_infra`        | Emergency routing when cloud_datacenter fails  |
+Each scenario maps its industry concepts to 7 buildings using a shared `BuildingType` enum
+so the PixiJS renderer works across all scenarios unchanged.
+
+| Slot | Healthcare | Financial Services | Retail & E-commerce | Manufacturing |
+|------|-----------|-------------------|---------------------|---------------|
+| Primary hub | City General Hospital | Trading Floor | Order Management Hub | Factory Floor Control |
+| Secondary system | Central Pharmacy | Risk Management | Payment Gateway | Quality Control System |
+| Core infrastructure | CloudCore Data Center | Cloud Infrastructure | Cloud Platform | Cloud SCADA Platform |
+| Comms | Communications Hub | Communications Hub | Communications Hub | Plant Communications |
+| Orchestration | Maestro Orchestration Center | Orchestration Center | Orchestration Center | Industrial Automation Hub |
+| Human resources / supply | Staffing & Operations | Compliance Center | Fulfillment Operations | Supply Chain Management |
+| Failover | Failover Infrastructure | DR Site | Backup Infrastructure | Backup Control Center |
 
 ### The Five AI Agents
 
-| Agent   | Name     | Type                   | Default Autonomy | Home Building          |
-|---------|----------|------------------------|------------------|------------------------|
-| ARIA    | ARIA     | Operations Coordinator | 2 (supervised)   | Orchestration Center   |
-| SENTINEL| SENTINEL | Incident Response      | 2 (supervised)   | CloudCore Data Center  |
-| VERITAS | VERITAS  | Compliance             | 1 (human-led)    | City General Hospital  |
-| ECHO    | ECHO     | Communications         | 2 (supervised)   | Communications Hub     |
-| APEX    | APEX     | Executive Strategy     | 1 (human-led)    | Orchestration Center   |
+Each scenario has five agents mapped to the same five role types:
+
+| Role | Healthcare | Financial | Retail | Manufacturing |
+|------|-----------|-----------|--------|---------------|
+| Operations Coordinator | ARIA | MERIDIAN | FLUX | FORGE |
+| Incident Response | SENTINEL | GUARDIAN | SHIELD | TITAN |
+| Compliance | VERITAS | LEXIS | CIPHER | PRISM |
+| Communications | ECHO | HERALD | PULSE | BEACON |
+| Executive Strategy | APEX | NEXUS | SUMMIT | APEX |
 
 ### The Five UiPath Processes
 
-| Process                   | Triggered By                                 | Human Approval? |
-|---------------------------|----------------------------------------------|-----------------|
-| `Incident_Escalation`     | Building health drops below 60               | No (auto)       |
-| `Approval_Chain`          | Workflow risk score > 0.7                    | Yes (if > 0.85) |
-| `Crisis_Response`         | Two or more buildings degraded simultaneously| Yes (always)    |
-| `Emergency_Staffing`      | Staffing level < 30% or human strain > 80%   | No (auto)       |
-| `Trust_Recovery_Protocol` | System trust drops > 10 points in one tick   | No (auto)       |
+Each scenario configures scenario-specific process names (e.g., `Trade_Incident_Escalation`
+vs. `Production_Incident_Escalation`). The trigger logic is the same; only the process name
+and vocabulary differ.
+
+| Process | Triggered By | Human Approval? |
+|---------|-------------|-----------------|
+| `<Scenario>_Incident_Escalation` | Building health drops below 60 | No (auto) |
+| `<Scenario>_Approval_Chain` | Workflow risk score > 0.7 | Yes (if > 0.85) |
+| `<Scenario>_Crisis_Response` | Two or more buildings degraded simultaneously | Yes (always) |
+| `<Scenario>_Staffing` | Staffing level < 30% or human strain > 80% | No (auto) |
+| `Trust_Recovery_Protocol` | System trust drops > 10 points in one tick | No (auto) |
 
 ---
 
@@ -193,8 +190,6 @@ cd maestro-city
 npm run install:all
 ```
 
-This installs Node dependencies for the frontend and Python dependencies for the backend.
-
 If `npm run install:all` fails on the Python side:
 ```bash
 cd apps/backend
@@ -207,8 +202,8 @@ pip install -r requirements.txt
 cp apps/backend/.env.example apps/backend/.env
 ```
 
-Open `apps/backend/.env` in a text editor. At minimum the simulation works with no
-changes. To connect UiPath, fill in the five `UIPATH_*` variables:
+At minimum the simulation works with no changes. To connect UiPath, fill in the five
+`UIPATH_*` variables:
 
 ```env
 UIPATH_ORGANIZATION=your-org
@@ -218,30 +213,19 @@ UIPATH_CLIENT_SECRET=your-client-secret
 UIPATH_FOLDER_ID=12345
 ```
 
-See [docs/UIPATH_PLATFORM_SETUP.md](./UIPATH_PLATFORM_SETUP.md) for exact instructions
-on where to find each value.
+To enable the Coding Agent (AI-generated XAML):
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+See [docs/UIPATH_PLATFORM_SETUP.md](./UIPATH_PLATFORM_SETUP.md) for exact instructions.
 
 ### Step 3: Start the Backend
 
 ```bash
 cd apps/backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-You should see:
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000
-INFO:     Simulation engine started — tick interval: 1.0s
-```
-
-If UiPath is configured:
-```
-INFO:     UiPath client initialised — org=your-org tenant=your-tenant folder=12345
-```
-
-If not configured:
-```
-INFO:     UiPath not configured — running in offline mode
 ```
 
 ### Step 4: Start the Frontend
@@ -252,23 +236,333 @@ cd apps/frontend
 npm run dev
 ```
 
-You should see:
-```
-  ▲ Next.js 14.x.x
-  - Local:  http://localhost:3000
+Or run both from the project root:
+```bash
+npm run dev
 ```
 
 ### Step 5: Open the App
 
-Go to **http://localhost:3000** in your browser.
+Go to **http://localhost:3000**. The scenario selector appears — choose an industry
+scenario to start the simulation.
 
-The city grid appears. The simulation starts automatically. Within 30 seconds you should
-see workflow particles moving between buildings, agent drones patrolling, and the
-metrics panel updating each tick.
+---
 
-To run both backend and frontend simultaneously from the project root:
+## Scenario API
+
+The frontend communicates with these endpoints to drive the scenario selector:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/scenarios` | GET | List all available scenarios with metadata |
+| `/api/scenario/select` | POST | Switch to a scenario (resets simulation) |
+| `/api/scenario/active` | GET | Return the active scenario (for page reload restore) |
+| `/api/scenario/reset` | POST | Reset current scenario to initial state |
+
+---
+
+## How to Add a New Scenario
+
+The scenario system is designed for this. Adding a new enterprise scenario requires **one file**.
+
+### Step 1: Create the scenario file
+
 ```bash
-npm run dev
+touch apps/backend/scenarios/my_new_scenario.py
+```
+
+### Step 2: Implement `get_scenario()`
+
+Copy the structure from any existing scenario (e.g., `scenarios/healthcare.py`) and fill
+in your values. The `ScenarioDefinition` dataclass documents every field:
+
+```python
+from scenarios.base import ScenarioDefinition
+
+def get_scenario() -> ScenarioDefinition:
+    return ScenarioDefinition(
+        id="energy",                          # URL-safe, unique
+        name="Energy & Utilities",            # Display name on the card
+        tagline="Keep the grid stable under ...",  # One sentence for the card
+        description="...",                    # 2–3 sentences for detail panel
+        industry="Energy",
+        icon="⚡",
+        color="#EAB308",                      # Hex accent used for card border/glow
+
+        # 7 buildings — use the existing BuildingType enum values for visuals.
+        # The renderer uses `type` for the sprite, `name` is display-only.
+        # BuildingType options: hospital, pharmacy, cloud_datacenter, comms_hub,
+        #                       orchestration_center, staffing_hr, backup_infra
+        buildings=[
+            {
+                "id": "control_room",        # unique within this scenario
+                "type": "hospital",           # picks the visual sprite
+                "name": "Grid Control Room",  # shown in tooltips
+                "pos": {"x": 1, "y": 1, "w": 3, "h": 3},
+                "status": "operational",
+                "health": 100.0,
+                "throughput": 90.0,
+                "staffingLevel": 75.0,
+                "trustLevel": 90.0,
+                "dependencies": ["cloud_datacenter", "orchestration_center"],
+                "queueDepth": 10,
+                "recoveryCapacity": 60.0,
+            },
+            # ... 6 more buildings
+        ],
+
+        # 5 agents — use the existing AgentType enum values.
+        # AgentType options: operations_coordinator, incident_response, compliance,
+        #                    communications, executive_strategy
+        agents=[
+            {
+                "id": "ops_coord",
+                "type": "operations_coordinator",
+                "name": "VOLT",               # scenario-specific name
+                "autonomyLevel": 2,
+                "trustScore": 85.0,
+                "status": "idle",
+                "lastAction": "Grid load balancing and substation coordination",
+                "lastActionAt": 0.0,
+                "actionsThisTick": 0,
+                "currentBuildingId": "orchestration_center",
+                "targetBuildingId": None,
+            },
+            # ... 4 more agents
+        ],
+
+        # Workflows connecting buildings (use existing WorkflowType enum values)
+        workflows=[
+            {"id": "wf-001", "type": "ehr_record", "sourceId": "control_room",
+             "destId": "orchestration_center", "priority": "high",
+             "status": "flowing", "automationEligible": True, "risk": 0.20, "progress": 0.40},
+            # ...
+        ],
+
+        # Dependency edges: (from_id, to_id) — cascade propagates along these
+        dependency_edges=[
+            ("control_room", "cloud_datacenter"),
+            # ...
+        ],
+
+        # Vocabulary maps generic labels to industry terms in reports and runbooks
+        vocabulary={
+            "service_unit": "megawatt-hour",
+            "primary_system": "Grid Control Room",
+            "secondary_system": "Substation Network",
+            "workflow_type_primary": "load dispatch",
+            "workflow_type_secondary": "fault isolation",
+            "staffing_role": "grid operator",
+            "incident_name": "Grid Stability Incident",
+            "outage_label": "Grid Outage",
+            "org_unit": "substation",
+        },
+
+        compliance_frameworks=["NERC CIP", "IEC 62351", "FERC Order 2222"],
+
+        # Process names must match your Orchestrator folder releases exactly
+        uipath_processes=[
+            "Grid_Incident_Escalation",
+            "Grid_Approval_Chain",
+            "Grid_Crisis_Response",
+            "Operator_Coverage_Staffing",
+            "Trust_Recovery_Protocol",
+        ],
+
+        # Outage presets shown in the trigger panel
+        outage_presets=[
+            {
+                "id": "control_room_failure",
+                "name": "Grid Control Room Failure",
+                "buildingId": "control_room",
+                "severity": "full",
+                "description": "Primary control room failure — grid visibility lost",
+            },
+        ],
+
+        industry_context=(
+            "Electric grid operations require continuous availability of control systems "
+            "to maintain frequency stability and prevent cascading outages under NERC CIP."
+        ),
+    )
+```
+
+### Step 3: Register it
+
+Open `apps/backend/scenarios/registry.py` and add two lines:
+
+```python
+from scenarios.my_new_scenario import get_scenario as get_energy  # add this
+
+SCENARIO_REGISTRY = {
+    "healthcare": get_healthcare(),
+    "financial_services": get_financial(),
+    "retail_ecommerce": get_retail(),
+    "manufacturing": get_manufacturing(),
+    "energy": get_energy(),               # add this
+}
+```
+
+That's it. The scenario now appears in the frontend selector, generates scenario-specific
+after-action reports and runbooks, and uses the correct UiPath process names in all outputs.
+No frontend changes required.
+
+### Field Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | URL-safe identifier used in API calls |
+| `name` | string | Full display name |
+| `tagline` | string | One sentence shown on the scenario card |
+| `description` | string | 2–3 sentences for the detail view |
+| `industry` | string | Industry pill label |
+| `icon` | string | Emoji displayed on the card and in reports |
+| `color` | string | Hex accent color (`#RRGGBB`) |
+| `buildings` | list | 7 building dicts — must include all required fields |
+| `agents` | list | 5 agent dicts — one per role type |
+| `workflows` | list | Initial workflow connections |
+| `dependency_edges` | list | `(from_id, to_id)` tuples for cascade propagation |
+| `vocabulary` | dict | Maps generic terms to scenario-specific language in reports |
+| `compliance_frameworks` | list | Shown as pills on the card and cited in reports |
+| `uipath_processes` | list | Orchestrator release names for all 5 processes |
+| `outage_presets` | list | Named outage presets shown in the trigger panel |
+| `industry_context` | string | Paragraph used in executive summary of after-action report |
+
+---
+
+## How to Play
+
+### The Goal
+
+Keep the city operational. Operational Stability should stay above 50. System Trust should
+stay above 40. If either collapses to zero, the simulation enters **Collapsed** phase.
+
+### Controls
+
+**Click a building** to see its health, throughput, staffing level, and trust score.
+From the building panel you can:
+- **Trigger Outage**: Drop the building's health to simulate a failure.
+- **Restore Building**: Immediately restore health to 80%.
+- **Activate Failover**: Route the building's workflows through backup infrastructure.
+- **Set Staffing Level**: Drag to adjust staffing (reduces human strain).
+
+**Click an agent** to see its status and autonomy level:
+- **Set Autonomy Level**: 0 (fully human) through 4 (fully autonomous).
+
+**Left sidebar — Overlay modes:**
+- **Dependency**: highlights the dependency graph between buildings.
+- **Congestion**: shows queue depths (red = backlogged).
+- **Trust**: heatmap of building and agent trust scores.
+- **Staffing**: shows staffing levels (blue = fully staffed, red = overloaded).
+- **Outage**: highlights buildings in degraded/critical/offline state.
+- **Orchestration**: shows active UiPath job flows.
+
+**Toolbar:**
+- **Reports**: generates and downloads all four enterprise deliverables.
+- **Coding Agent**: generates a context-aware UiPath XAML workflow from current sim state.
+- **Agent Builder**: shows all 5 agent configurations with UiPath deployment details.
+
+### Demo Script (5-Minute Walkthrough)
+
+**Minute 1 — Scenario Selection**
+Open the app. The scenario selector landing page appears. Walk through the four industry
+cards — point out different compliance frameworks, agent names, and UiPath process names.
+Select **Healthcare Enterprise** (or Financial Services for a trading-focused audience).
+
+**Minute 2 — Trigger an Incident**
+Click the **cloud infrastructure building** (CloudCore Data Center / Cloud Infrastructure /
+Cloud Platform / Cloud SCADA Platform depending on scenario). Click **Trigger Outage → Full**.
+Watch the cascade: dependent buildings degrade within 2–3 ticks, the alert feed fires, and
+the UiPath status panel shows the first automation job.
+
+**Minute 3 — Watch the Cascade**
+Do nothing for 5–8 ticks. Human Strain rises, System Trust drops. If UiPath is connected,
+the crisis response job triggers and an executive action item appears in the Maestro panel.
+
+**Minute 4 — Intervene**
+Activate failover, set staffing to 90%, and approve any pending Maestro action items.
+Point out how the after-action report will capture exactly these interventions.
+
+**Minute 5 — Download Outputs**
+Click **Reports**. Download the After-Action Report, Runbook, and Calibration Certificate.
+Click **Coding Agent → Crisis Response** to generate context-aware XAML that reflects
+the exact crisis you just ran through.
+
+### Tips
+
+- Set `VERITAS` (compliance) to autonomy level 0 — every high-risk approval becomes a
+  Maestro action item, making the human-in-the-loop story very visible.
+- Lower `SIMULATION_TICK_INTERVAL` to `0.25` in `.env` for a fast demo. Raise to `3.0`
+  to give more time to explain each step.
+- Do not let `human_strain > 85` persist for more than 5 ticks — triggers emergency staffing.
+
+---
+
+## Project Structure
+
+```
+maestro-city/
+├── apps/
+│   ├── backend/                        # FastAPI simulation engine
+│   │   ├── main.py                     # App entrypoint, lifecycle, router mounts
+│   │   ├── scenarios/                  # ← Scenario registry (plug-in architecture)
+│   │   │   ├── base.py                 # ScenarioDefinition dataclass
+│   │   │   ├── registry.py             # SCENARIO_REGISTRY + list/get functions
+│   │   │   ├── healthcare.py           # 🏥 Healthcare Enterprise scenario
+│   │   │   ├── financial_services.py   # 📈 Financial Services scenario
+│   │   │   ├── retail_ecommerce.py     # 🛒 Retail & E-commerce scenario
+│   │   │   └── manufacturing.py        # 🏭 Manufacturing & Industry 4.0 scenario
+│   │   ├── simulation/
+│   │   │   ├── city_config.py          # Delegates to active scenario definition
+│   │   │   ├── engine.py               # Tick loop, cascade logic, select_scenario()
+│   │   │   ├── scenario_tracker.py     # Per-tick intervention and event tracking
+│   │   │   ├── after_action_reporter.py# Generates scenario-specific AAR
+│   │   │   ├── runbook_generator.py    # Generates validated runbook
+│   │   │   └── autonomy_calibrator.py  # Per-agent readiness certificate
+│   │   ├── api/
+│   │   │   ├── routes.py               # Main REST routes + scenario endpoints
+│   │   │   ├── agent_builder.py        # Agent definitions with UiPath metadata
+│   │   │   ├── coding_agent.py         # OpenAI GPT-4o XAML generation
+│   │   │   ├── enterprise_systems.py   # Integration Service API trigger endpoints
+│   │   │   ├── approvals.py            # Maestro approval queue
+│   │   │   └── websocket.py            # WebSocket state broadcaster
+│   │   ├── models/
+│   │   │   ├── building.py             # Building type, status, health model
+│   │   │   ├── workflow.py             # Workflow routing model
+│   │   │   ├── agent.py                # Agent type, autonomy, trust model
+│   │   │   ├── state.py                # Full SimulationState, UiPath status models
+│   │   │   └── actions.py              # Player action types
+│   │   ├── agents/                     # Per-agent decision logic
+│   │   ├── orchestration/
+│   │   │   ├── uipath_client.py        # OAuth 2.0, StartJobs, API Triggers
+│   │   │   ├── escalation_router.py    # Routes events to correct processes
+│   │   │   ├── webhook_handler.py      # Webhook receipt + HMAC verification
+│   │   │   └── process_template_generator.py  # XAML scaffold templates
+│   │   ├── requirements.txt
+│   │   └── .env.example
+│   └── frontend/                       # Next.js + PixiJS
+│       ├── app/page.tsx                # Conditional: ScenarioSelector or city view
+│       ├── components/
+│       │   ├── ScenarioSelector.tsx    # ← Full-screen scenario landing page
+│       │   ├── TopBar.tsx              # Scenario badge + toolbar controls
+│       │   ├── city/                   # PixiJS rendering (CityCanvas, sprites)
+│       │   ├── panels/                 # MetricsPanel, AlertFeed, ControlsPanel
+│       │   ├── reports/                # AfterActionReport, Runbook, etc.
+│       │   ├── AgentBuilderPanel.tsx   # Agent config viewer
+│       │   └── CodeGenModal.tsx        # Coding Agent XAML viewer
+│       ├── lib/
+│       │   ├── store.ts                # Zustand store (sim state + scenario state)
+│       │   └── reports.ts              # Report type definitions
+│       └── types/game.ts               # Frontend-specific types
+├── packages/
+│   └── shared-types/src/index.ts       # Shared TypeScript types
+├── docs/
+│   ├── README.md                       # This file
+│   ├── UIPATH_PLATFORM_SETUP.md        # Step-by-step UiPath configuration guide
+│   ├── UIPATH_INTEGRATION.md           # Developer API reference
+│   ├── AGENT_BUILDER_SETUP.md          # Agent Builder click-by-click setup
+│   └── CODING_AGENT.md                 # Coding Agent (GPT-4o XAML generation)
+└── package.json                        # Workspace root with dev/build scripts
 ```
 
 ---
@@ -277,17 +571,20 @@ npm run dev
 
 Full reference in [docs/UIPATH_INTEGRATION.md](./UIPATH_INTEGRATION.md#environment-variables-reference).
 
-| Variable                   | Required | Description                                    |
-|----------------------------|----------|------------------------------------------------|
-| `UIPATH_CLOUD_URL`         | No       | UiPath Cloud base URL (default: https://cloud.uipath.com) |
-| `UIPATH_ORGANIZATION`      | Yes*     | Your organisation name from the cloud URL      |
-| `UIPATH_TENANT`            | Yes*     | Tenant name within your organisation           |
-| `UIPATH_CLIENT_ID`         | Yes*     | OAuth 2.0 client ID                            |
-| `UIPATH_CLIENT_SECRET`     | Yes*     | OAuth 2.0 client secret                        |
-| `UIPATH_FOLDER_ID`         | Yes*     | Orchestrator folder ID (integer)               |
-| `UIPATH_WEBHOOK_SECRET`    | No       | HMAC secret for webhook signature verification |
-| `OPENAI_API_KEY`           | No       | Enables LLM narrative generation               |
-| `SIMULATION_TICK_INTERVAL` | No       | Seconds per tick (default: 1.0)                |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `UIPATH_ORGANIZATION` | Yes* | Your organisation name from the Cloud URL |
+| `UIPATH_TENANT` | Yes* | Tenant name within your organisation |
+| `UIPATH_CLIENT_ID` | Yes* | OAuth 2.0 client ID |
+| `UIPATH_CLIENT_SECRET` | Yes* | OAuth 2.0 client secret |
+| `UIPATH_FOLDER_ID` | Yes* | Orchestrator folder ID (integer) |
+| `UIPATH_WEBHOOK_SECRET` | No | HMAC secret for webhook signature verification |
+| `OPENAI_API_KEY` | No | Enables Coding Agent XAML generation via GPT-4o |
+| `SIMULATION_TICK_INTERVAL` | No | Seconds per tick (default: 1.0) |
+| `ACTIVE_SCENARIO` | No | Default scenario on cold start (default: `healthcare`) |
+| `UIPATH_ARIA_PROCESS_NAME` | No | Override Orchestrator process name for ARIA |
+| `UIPATH_SENTINEL_PROCESS_NAME` | No | Override Orchestrator process name for SENTINEL |
+| `UIPATH_VERITAS_PROCESS_NAME` | No | Override Orchestrator process name for VERITAS |
 
 `*` Required only for UiPath integration. The simulation runs without them.
 
@@ -301,167 +598,33 @@ step-by-step setup guide, including:
 - Creating the OAuth external application and scopes
 - Setting up the MaestroCity Orchestrator folder
 - Building all five Studio automation projects with exact arguments
+- Configuring Integration Service API triggers
 - Configuring webhooks
 - Testing the integration end-to-end
 
-See **[docs/UIPATH_INTEGRATION.md](./UIPATH_INTEGRATION.md)** for the developer
-technical reference, including:
+See **[docs/AGENT_BUILDER_SETUP.md](./AGENT_BUILDER_SETUP.md)** for the Agent Builder
+setup guide: defining all five agents with system prompts, tool schemas, and trigger
+conditions.
 
-- Full REST API call examples with request/response bodies
-- HMAC webhook verification implementation
-- Simulation event → UiPath process mapping table
-- Error handling and offline mode behaviour
-- Rate limit guidance
-
----
-
-## How to Play
-
-### The Goal
-
-Keep the city operational. Operational Stability should stay above 50. System Trust
-should stay above 40. If either collapses to zero, the simulation enters **Collapsed**
-phase — game over.
-
-### Controls
-
-**Click a building** to see its health, throughput, staffing level, and trust score.
-From the building panel you can:
-- **Trigger Outage**: Drop the building's health to simulate a failure.
-- **Restore Building**: Immediately restore health to 80%.
-- **Activate Failover**: Route the building's workflows through `backup_infra`.
-- **Set Staffing Level**: Drag to adjust staffing (reduces human strain).
-
-**Click an agent** (the glowing drone on the grid) to see its status and autonomy level.
-From the agent panel you can:
-- **Set Autonomy Level**: 0 (fully human) through 4 (fully autonomous).
-  Lower autonomy = the agent asks for more approvals. Higher = acts independently.
-
-**Left sidebar — Overlay modes:**
-- **Dependency**: highlights the dependency graph between buildings (which buildings
-  fail if cloud_datacenter goes offline).
-- **Congestion**: shows queue depths (red = backlogged).
-- **Trust**: heatmap of building and agent trust scores.
-- **Staffing**: shows staffing levels (blue = fully staffed, red = overloaded).
-- **Outage**: highlights buildings in degraded/critical/offline state.
-- **Orchestration**: shows active UiPath job flows.
-
-**UiPath Status Panel** (bottom right):
-- Shows whether UiPath is connected.
-- Lists active jobs currently running on Orchestrator.
-- Lists pending Maestro action items awaiting human approval.
-- Click an action item to open the Maestro approval UI directly.
-
-### Demo Script (5-Minute Walkthrough)
-
-**Minute 1 — Introduction**
-Open the app. Point out the seven buildings, the workflow particles flowing between
-them, and the metrics panel showing all-green. Explain the three critical metrics:
-Operational Stability, Human Strain, and System Trust.
-
-**Minute 2 — Trigger an Incident**
-Click the **CloudCore Data Center** building. Click **Trigger Outage → Full**. Watch:
-- Building health drops to near zero.
-- Dependent buildings (hospital, pharmacy, orchestration center, comms hub) begin
-  degrading within 2–3 ticks.
-- If UiPath is connected: `Incident_Escalation` job appears in the UiPath status panel.
-  A critical alert fires in the alert log.
-- SENTINEL agent switches to `escalating` status and moves toward the data center.
-
-**Minute 3 — Watch the Cascade**
-Do nothing. After 5–8 ticks, the cascade propagates:
-- Hospital and pharmacy degrade.
-- Human Strain rises as queues back up.
-- If UiPath is connected: `Crisis_Response` job triggers automatically. An executive
-  action item appears in the Maestro panel.
-- System Trust begins dropping.
-
-**Minute 4 — Intervene**
-- Click **Failover Infrastructure** > **Activate Failover for CloudCore**. Workflows
-  begin routing through the backup.
-- Click **Staffing & Operations** > **Set Staffing Level 90%**. Human Strain starts
-  dropping.
-- If UiPath is connected: click the pending Maestro action item to open the approval
-  form. Approve the crisis response plan. The simulation's recovery timeline accelerates.
-
-**Minute 5 — Recovery**
-- Click **CloudCore Data Center** > **Restore Building**.
-- Watch the cascade reverse: pharmacy and hospital recover, workflows resume, trust
-  climbs back.
-- If UiPath is connected: `Trust_Recovery_Protocol` fires automatically when trust
-  recovers past 50. Recommended autonomy levels appear in the agent HUD.
-
-### Tips
-
-- Do not let `human_strain > 85` persist for more than 5 ticks — it causes a
-  `staffing_exhaustion` crisis that triggers `Emergency_Staffing`.
-- VERITAS (compliance agent) at autonomy level 0 blocks all high-risk approvals manually.
-  Great for demos — every approval lights up as a Maestro action item.
-- Lower `SIMULATION_TICK_INTERVAL` to `0.25` in `.env` for a fast demo. Increase to
-  `3.0` to give more time to explain each step.
-
----
-
-## Project Structure
-
-```
-maestro-city/
-├── apps/
-│   ├── backend/                  # FastAPI simulation engine
-│   │   ├── main.py               # App entrypoint, WebSocket handler, API routes
-│   │   ├── simulation/
-│   │   │   ├── city_config.py    # Initial city state: buildings, workflows, agents
-│   │   │   └── engine.py         # Tick loop, cascade logic, agent decisions
-│   │   ├── models/
-│   │   │   ├── building.py       # Building type, status, health model
-│   │   │   ├── workflow.py       # Workflow routing model
-│   │   │   ├── agent.py          # Agent type, autonomy, trust model
-│   │   │   ├── state.py          # Full SimulationState, UiPath status models
-│   │   │   └── actions.py        # Player action types (union discriminated)
-│   │   ├── uipath/
-│   │   │   ├── client.py         # OAuth token cache, StartJobs, Releases API
-│   │   │   └── webhook.py        # Webhook receiver, HMAC verification
-│   │   ├── requirements.txt
-│   │   └── .env.example
-│   └── frontend/                 # Next.js + PixiJS
-│       ├── app/                  # Next.js App Router pages
-│       ├── components/
-│       │   ├── CityCanvas.tsx    # PixiJS rendering layer
-│       │   ├── BuildingSprite.tsx
-│       │   ├── AgentDrone.tsx
-│       │   ├── WorkflowParticle.tsx
-│       │   ├── MetricsPanel.tsx
-│       │   ├── UiPathPanel.tsx   # Active jobs + action items display
-│       │   └── AlertLog.tsx
-│       ├── lib/
-│       │   ├── store.ts          # Zustand game state store
-│       │   └── websocket.ts      # WS client + action dispatcher
-│       └── types/game.ts         # Frontend-specific types
-├── packages/
-│   └── shared-types/
-│       └── src/index.ts          # Shared TypeScript types (Building, Agent, etc.)
-├── docs/
-│   ├── README.md                 # This file
-│   ├── UIPATH_PLATFORM_SETUP.md  # Step-by-step UiPath configuration guide
-│   └── UIPATH_INTEGRATION.md     # Developer technical reference
-└── package.json                  # Workspace root with dev/build scripts
-```
+See **[docs/CODING_AGENT.md](./CODING_AGENT.md)** for how the Coding Agent bonus feature
+works: GPT-4o generating context-aware UiPath XAML from live simulation state.
 
 ---
 
 ## Technology Stack
 
-| Layer          | Technology                          | Version |
-|----------------|-------------------------------------|---------|
-| Frontend UI    | Next.js (App Router)                | 14.x    |
-| 2D Rendering   | PixiJS via @pixi/react              | 7.x     |
-| Frontend State | Zustand                             | 4.x     |
-| Backend        | FastAPI + Uvicorn                   | 0.111 / 0.30 |
-| HTTP Client    | HTTPX (async)                       | 0.27    |
-| Data Models    | Pydantic v2                         | 2.7     |
-| Simulation     | Pure Python + NetworkX (graph deps) | 3.3     |
-| Real-Time      | WebSockets (native FastAPI)         | —       |
-| Automation     | UiPath Orchestrator (REST API v2)   | Cloud   |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Frontend UI | Next.js (App Router) | 14.x |
+| 2D Rendering | PixiJS via @pixi/react | 7.x |
+| Frontend State | Zustand | 4.x |
+| Backend | FastAPI + Uvicorn | 0.111 / 0.30 |
+| HTTP Client | HTTPX (async) | 0.27 |
+| Data Models | Pydantic v2 | 2.7 |
+| Simulation | Pure Python | — |
+| Real-Time | WebSockets (native FastAPI) | — |
+| XAML Generation | OpenAI GPT-4o | — |
+| Automation | UiPath Orchestrator (REST API v2) | Cloud |
 
 ---
 
@@ -475,32 +638,39 @@ maestro-city/
 
 ### What Makes This Submission Stand Out
 
-1. **End-to-end UiPath integration** — real OAuth 2.0 authentication, real job
-   triggering via the StartJobs API, real webhook receipt and verification. This is not
-   a mock.
+1. **Four complete enterprise scenarios** — the simulation is not a healthcare demo with
+   a coat of paint for other industries. Each scenario has fully independent building IDs,
+   agent names, compliance frameworks, UiPath process names, outage presets, and report
+   vocabulary. Switching scenarios resets and reconfigures the entire simulation.
 
-2. **Genuine agentic decision-making** — five agents with independent autonomy levels
-   make different choices in the same situation. SENTINEL at level 4 auto-escalates
-   without asking. VERITAS at level 1 blocks everything for human review.
+2. **End-to-end UiPath integration** — real OAuth 2.0 authentication, real job triggering
+   via the StartJobs API, real Integration Service API triggers, real webhook receipt and
+   HMAC verification. This is not a mock.
 
-3. **Human-in-the-loop by design** — Maestro action items are not an afterthought.
-   High-risk approval decisions halt the simulation until a human approves in the Maestro
-   UI. The simulation state reflects the outcome the moment the form is submitted.
+3. **Genuine agentic decision-making** — five agents with independent autonomy levels make
+   different choices in the same situation. The incident response agent at level 4 auto-escalates
+   without asking; the compliance agent at level 1 blocks everything for human review.
 
-4. **Graceful degradation** — the simulation is a fully playable experience even without
-   UiPath credentials. This makes live demos reliable.
+4. **Human-in-the-loop by design** — Maestro action items are not an afterthought.
+   High-risk approval decisions halt the simulation until a human approves. The simulation
+   reflects the outcome the moment the form is submitted.
 
-5. **Production-quality codebase** — typed models shared between frontend and backend,
-   HMAC webhook security, async token caching with proactive refresh, deduplication
-   guards against event storms, per-building dependency graph for realistic cascades.
+5. **Actionable enterprise outputs** — four downloadable artifacts per scenario run that
+   cross back into real operational decisions: an evidence-based post-incident report, a
+   validated runbook, an autonomy calibration certificate, and importable Studio projects.
+
+6. **Extensible by design** — adding a fifth scenario is one file and two lines. Adding a
+   sixth enterprise deliverable follows the same pattern in `simulation/`.
 
 ### Demo Checklist
 
-- [ ] App starts with `npm run dev` from repo root
-- [ ] City grid renders with all seven buildings and workflow particles
+- [ ] Scenario selector appears on first load; all 4 scenarios visible with compliance badges
+- [ ] Selecting a scenario resets and starts the simulation
+- [ ] City grid renders with buildings, workflow particles, and agent drones
 - [ ] Triggering an outage causes visible cascade in the grid
+- [ ] TopBar shows active scenario name and "Change" button
 - [ ] UiPath panel shows active jobs (requires UiPath credentials)
-- [ ] Webhook panel updates when jobs complete (requires UiPath + public endpoint)
-- [ ] Maestro action items appear for high-risk approvals (requires UiPath Maestro tier)
-- [ ] Approving/rejecting in Maestro reflects in simulation within 1–2 ticks
-- [ ] Simulation continues correctly in offline mode (no UiPath credentials set)
+- [ ] Maestro action items appear for high-risk approvals
+- [ ] After-Action Report uses scenario-specific terminology
+- [ ] Coding Agent button generates context-aware XAML (requires `OPENAI_API_KEY`)
+- [ ] Simulation runs correctly in offline mode (no UiPath credentials)
