@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '@/lib/api';
 import type {
   SimulationState,
   OverlayMode,
@@ -197,10 +198,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ reportsLoading: true, reportsError: null });
     try {
       const [aarRes, rbRes, calRes, ptRes] = await Promise.all([
-        fetch('/api/report/after-action'),
-        fetch('/api/report/runbook'),
-        fetch('/api/report/autonomy-calibration'),
-        fetch('/api/report/process-templates'),
+        api('/api/report/after-action'),
+        api('/api/report/runbook'),
+        api('/api/report/autonomy-calibration'),
+        api('/api/report/process-templates'),
       ]);
 
       if (!aarRes.ok || !rbRes.ok || !calRes.ok || !ptRes.ok) {
@@ -225,7 +226,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   resetScenario: async () => {
     try {
-      await fetch('/api/scenario/reset', { method: 'POST' });
+      await api('/api/scenario/reset', { method: 'POST' });
     } catch (err) {
       console.error('[store] resetScenario failed:', err);
     }
@@ -235,7 +236,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   fetchAgentBuilder: async () => {
     try {
-      const res = await fetch('/api/agent-builder/agents');
+      const res = await api('/api/agent-builder/agents');
       if (!res.ok) throw new Error('Failed to fetch agent builder data');
       const data = await res.json();
       set({ agentBuilderData: data });
@@ -250,7 +251,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   fetchApprovals: async () => {
     try {
-      const res = await fetch('/api/approvals/pending');
+      const res = await api('/api/approvals/pending');
       if (!res.ok) throw new Error('Failed to fetch approvals');
       const data = await res.json();
       const approvals = Array.isArray(data) ? data : (data.approvals ?? []);
@@ -263,7 +264,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   fetchScenarios: async () => {
     set({ scenarioLoading: true });
     try {
-      const res = await fetch('http://localhost:8000/api/scenarios');
+      const res = await api('/api/scenarios');
       if (!res.ok) throw new Error('Failed to fetch scenarios');
       const data = await res.json();
       const scenarios: ScenarioInfo[] = data.scenarios ?? [];
@@ -271,7 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // Also check if there's an active scenario (restore on page reload)
       try {
-        const activeRes = await fetch('http://localhost:8000/api/scenario/active');
+        const activeRes = await api('/api/scenario/active');
         if (activeRes.ok) {
           const activeData = await activeRes.json();
           if (activeData.scenarioId && activeData.scenario) {
@@ -295,7 +296,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectScenario: async (id: string) => {
     set({ scenarioLoading: true });
     try {
-      const res = await fetch('http://localhost:8000/api/scenario/select', {
+      const res = await api('/api/scenario/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenarioId: id }),

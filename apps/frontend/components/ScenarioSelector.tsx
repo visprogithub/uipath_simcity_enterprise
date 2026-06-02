@@ -188,7 +188,7 @@ export default function ScenarioSelector() {
         {!scenarioLoading && availableScenarios.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-text-dim text-lg mb-2">No scenarios available</p>
-            <p className="text-text-dim text-sm">Make sure the backend is running at localhost:8000</p>
+            <p className="text-text-dim text-sm">Make sure the backend is running and reachable</p>
           </div>
         )}
       </div>

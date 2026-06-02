@@ -3,8 +3,7 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@/lib/store';
 import { gameWS } from '@/lib/websocket';
-
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000/ws';
+import { WS_URL } from '@/lib/api';
 
 export function useSimulation() {
   const simState = useGameStore((s) => s.simState);
