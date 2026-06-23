@@ -19,7 +19,9 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-TOKEN_ENDPOINT = "https://cloud.uipath.com/identity_/connect/token"
+# Path joined to UIPATH_CLOUD_URL so the right Identity Server is used per environment
+# (e.g. https://cloud.uipath.com or https://staging.uipath.com for hackathon access).
+TOKEN_ENDPOINT_PATH = "identity_/connect/token"
 TOKEN_BUFFER_SECONDS = 60  # refresh token 60s before expiry
 
 # Agent Builder: each Maestro City agent is deployed as an Orchestrator process.
@@ -81,12 +83,12 @@ class UiPathClient:
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
-                    TOKEN_ENDPOINT,
+                    f"{self.base_url}/{TOKEN_ENDPOINT_PATH}",
                     data={
                         "grant_type": "client_credentials",
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
-                        "scope": "OR.Jobs OR.Folders OR.Robots OR.Actions",
+                        "scope": "OR.Jobs OR.Execution OR.Folders OR.Tasks",
                     },
                 )
                 response.raise_for_status()
@@ -203,8 +205,10 @@ class UiPathClient:
             payload = {
                 "startInfo": {
                     "ReleaseKey": release_key,
-                    "Strategy": "Unattended",
-                    "RobotIds": [],
+                    # Serverless Automation Cloud Robots: modern strategy + Serverless runtime.
+                    # (Legacy "Unattended" strategy fails with errorCode 2818 on serverless folders.)
+                    "Strategy": "ModernJobsCount",
+                    "RuntimeType": "Serverless",
                     "JobsCount": 1,
                     "InputArguments": json.dumps(input_args),
                 }

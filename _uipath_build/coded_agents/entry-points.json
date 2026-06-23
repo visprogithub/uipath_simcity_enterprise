@@ -1,0 +1,431 @@
+{
+    "$schema": "https://cloud.uipath.com/draft/2024-12/entry-point",
+    "$id": "entry-points.json",
+    "entryPoints": [
+        {
+            "filePath": "aria",
+            "uniqueId": "5637e104-fb14-4b6e-aed9-9a27d26d7d89",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "agentId": {
+                        "default": "",
+                        "title": "Agentid",
+                        "type": "string"
+                    },
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "recommendation": {
+                        "title": "Recommendation",
+                        "type": "string"
+                    },
+                    "escalate": {
+                        "title": "Escalate",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "recommendation",
+                    "escalate"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_agent",
+                        "name": "run_agent",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_agent",
+                        "label": null
+                    },
+                    {
+                        "source": "run_agent",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        },
+        {
+            "filePath": "sentinel",
+            "uniqueId": "1ba1a382-7d19-4fec-a93d-62d12f28c789",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "agentId": {
+                        "default": "",
+                        "title": "Agentid",
+                        "type": "string"
+                    },
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "recommendation": {
+                        "title": "Recommendation",
+                        "type": "string"
+                    },
+                    "escalate": {
+                        "title": "Escalate",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "recommendation",
+                    "escalate"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_agent",
+                        "name": "run_agent",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_agent",
+                        "label": null
+                    },
+                    {
+                        "source": "run_agent",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        },
+        {
+            "filePath": "veritas",
+            "uniqueId": "01c0a5a1-fb5e-4faf-b32e-e87cdb5b49fa",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "agentId": {
+                        "default": "",
+                        "title": "Agentid",
+                        "type": "string"
+                    },
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "recommendation": {
+                        "title": "Recommendation",
+                        "type": "string"
+                    },
+                    "escalate": {
+                        "title": "Escalate",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "recommendation",
+                    "escalate"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_agent",
+                        "name": "run_agent",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_agent",
+                        "label": null
+                    },
+                    {
+                        "source": "run_agent",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        },
+        {
+            "filePath": "echo",
+            "uniqueId": "c1f0f791-e52b-495f-94de-21537ed11f27",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "agentId": {
+                        "default": "",
+                        "title": "Agentid",
+                        "type": "string"
+                    },
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "recommendation": {
+                        "title": "Recommendation",
+                        "type": "string"
+                    },
+                    "escalate": {
+                        "title": "Escalate",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "recommendation",
+                    "escalate"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_agent",
+                        "name": "run_agent",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_agent",
+                        "label": null
+                    },
+                    {
+                        "source": "run_agent",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        },
+        {
+            "filePath": "apex",
+            "uniqueId": "2c90b2f6-83a0-4eae-baa9-3b537e330564",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "agentId": {
+                        "default": "",
+                        "title": "Agentid",
+                        "type": "string"
+                    },
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "recommendation": {
+                        "title": "Recommendation",
+                        "type": "string"
+                    },
+                    "escalate": {
+                        "title": "Escalate",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "recommendation",
+                    "escalate"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_agent",
+                        "name": "run_agent",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_agent",
+                        "label": null
+                    },
+                    {
+                        "source": "run_agent",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -34,3 +34,17 @@ npm-debug.log*
 tsconfig.tsbuildinfo
 next-env.d.ts
 node_modules/
+.claude/*
+.mcp.json
+AGENTS.md
+CLAUDE.local.md
+CLAUDE.md
+repomix.config.json
+guides/*
+prompts/*
+tokens/*
+examples/*
+BRAND.md
+THEMES.md
+apps/frontend/.env.local
+demo/householdchoreexample.png

@@ -1,0 +1,71 @@
+{
+    "$schema": "https://cloud.uipath.com/draft/2024-12/entry-point",
+    "$id": "entry-points.json",
+    "entryPoints": [
+        {
+            "filePath": "scenario_gen",
+            "uniqueId": "0d5693d1-33dc-4d12-b73f-541c32504246",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "default": "",
+                        "title": "Description",
+                        "type": "string"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "spec": {
+                        "title": "Spec",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spec"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_generator",
+                        "name": "run_generator",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_generator",
+                        "label": null
+                    },
+                    {
+                        "source": "run_generator",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        }
+    ]
+}

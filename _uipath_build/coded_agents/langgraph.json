@@ -1,0 +1,9 @@
+{
+    "graphs": {
+      "aria": "./agents.py:aria_graph",
+      "sentinel": "./agents.py:sentinel_graph",
+      "veritas": "./agents.py:veritas_graph",
+      "echo": "./agents.py:echo_graph",
+      "apex": "./agents.py:apex_graph"
+    }
+}

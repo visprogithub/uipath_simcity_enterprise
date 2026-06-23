@@ -1,0 +1,9 @@
+[project]
+name = "coding_gen"
+version = "1.0.0"
+description = "Maestro City coding agent (XAML / entity / debug generation)"
+authors = [{ name = "Maestro City", email = "djbobbysocks@gmail.com" }]
+dependencies = [
+    "uipath-langchain>=0.13.0, <0.14.0",
+]
+requires-python = ">=3.11"

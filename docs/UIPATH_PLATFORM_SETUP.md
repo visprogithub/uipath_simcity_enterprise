@@ -209,33 +209,47 @@ machine setup is needed.
 
 ---
 
-## 5. Create the Five Required Processes in UiPath Studio
+## 5. Create the Five Required Processes
 
-Each process below must be created as a UiPath Studio project, then published to the
-**MaestroCity** folder in Orchestrator.
+> **UI update (verified 2026):** UiPath now ships **Studio Web** (browser-based) — you no
+> longer need to install Studio Desktop. Studio Web's **Start building / Create New** menu has
+> **no plain "Process" type**. The current options are: **Maestro BPMN**, **Agent**,
+> **RPA Workflow**, **API Workflow**, **App**, **Function**, and **Maestro Case**. The modern
+> equivalent of the old "Process" — an automation that publishes to Orchestrator as a runnable
+> release — is an **RPA Workflow**. (Sources: [Studio Web overview](https://docs.uipath.com/studio-web/automation-cloud/latest/user-guide/overview),
+> [How to start an RPA workflow](https://docs.uipath.com/studio-web/automation-cloud/latest/user-guide/how-to-start-an-rpa-workflow).)
 
-### 5.0 General Setup Steps (Do This for Every Process)
+There are two ways to create the five processes:
 
-1. Open **UiPath Studio** (download from https://www.uipath.com/product/studio if not
-   installed).
-2. On first launch, sign in with the same UiPath Cloud account.
-3. For each process:
-   a. Click **File > New > Process** (or click **New Project** on the home screen and
-      choose **Process**).
-   b. Set:
-      - **Name**: as specified below.
-      - **Location**: a folder on your machine (e.g., `C:\UiPath\MaestroCity\`).
-      - **Compatibility**: **Windows** (recommended) or **Cross-Platform**.
-      - **Language**: VB.NET or C# (VB.NET is the default).
-   c. Click **Create**.
-4. Build the workflow as described in each section below.
-5. To publish: click the **Publish** button in the Studio ribbon (top bar).
-   - **Publish to**: select **Orchestrator Tenant Processes Feed** (or **Orchestrator
-     Personal Workspace**, then move it to the folder — the former is simpler).
-   - In the Publish dialog, under **Orchestrator Folder**, select **MaestroCity**.
-   - Click **Publish**.
-   - After publishing, verify the process appears in Orchestrator:
-     Orchestrator > MaestroCity folder > **Processes**.
+- **Option A — Automated via API/CLI (no Studio at all).** This repo builds, compiles
+  (`uipcli`), and publishes all five processes programmatically through the Orchestrator
+  package API. See [`_uipath_build/build_all.py`](../_uipath_build/build_all.py). This is how the
+  agent processes (`ARIA_Operations_Coordinator`, `SENTINEL_Incident_Response`,
+  `VERITAS_Compliance`, `ECHO_Communications`, `APEX_Executive_Strategy`) were published —
+  zero manual Studio work. Prerequisite: the .NET 8 Desktop Runtime + the `UiPath.CLI.Windows`
+  dotnet tool (`dotnet tool install --global UiPath.CLI.Windows --add-source https://uipath.pkgs.visualstudio.com/Public.Feeds/_packaging/UiPath-Official/nuget/v3/index.json`).
+
+- **Option B — Manual via Studio Web (browser).** Use §5.0 below.
+
+### 5.0 General Setup Steps in Studio Web (Do This for Every Process)
+
+1. In Automation Cloud, open **Studio Web** (left navigation, or the **Studio** tile). No
+   installation required.
+2. Click **Create New** (the **Start building** dialog opens).
+3. Choose **RPA Workflow** — this is the runnable-process type that publishes to Orchestrator
+   as a release. (Choose **API Workflow** instead for the Integration Service triggers in §6.1;
+   **Agent** for Agent Builder agents; **Maestro BPMN / Maestro Case** for orchestration.)
+4. When prompted how the automation starts, select **Manual** (the default Manual Trigger)
+   unless the process should be scheduled or event-driven.
+5. In the designer canvas, add **input/output arguments** in the **Arguments** panel and build
+   the workflow as described in each section below.
+6. **Publish:** click **Publish** (top bar), select the **MaestroCity** folder, set the version,
+   and publish.
+7. Verify: **Orchestrator → MaestroCity folder → Processes/Releases** — the process appears there.
+
+> **Note:** The old desktop flow (**File > New > Process**, and the **Windows vs Cross-Platform**
+> compatibility prompt) applies only to **Studio Desktop**. Studio Web RPA Workflows are
+> cross-platform by default and run on serverless Automation Cloud robots.
 
 ### 5.1 Process 1: `Incident_Escalation`
 

@@ -64,7 +64,7 @@ class ExecutiveStrategyAgent(BaseAgent):
                     incident_agent.autonomyLevel = min(4, incident_agent.autonomyLevel + 1)
                     self._last_adjustment_tick = tick
                     self.record_action(
-                        f"AUTO: Increased SENTINEL autonomy {old_level} → {incident_agent.autonomyLevel} "
+                        f"AUTO: Increased {incident_agent.name} autonomy {old_level} → {incident_agent.autonomyLevel} "
                         f"(stability declining at {stability_trend:.1f}/tick)"
                     )
                     self.emit_event(
@@ -85,12 +85,12 @@ class ExecutiveStrategyAgent(BaseAgent):
                     self.create_alert(
                         engine,
                         AlertSeverity.warning,
-                        f"APEX: Stability declining ({stability_trend:.1f}/tick). "
-                        f"Recommend increasing SENTINEL autonomy to level "
+                        f"{self.model.name}: Stability declining ({stability_trend:.1f}/tick). "
+                        f"Recommend increasing {incident_agent.name} autonomy to level "
                         f"{min(4, incident_agent.autonomyLevel + 1)}.",
                     )
                     self.record_action(
-                        f"Recommended autonomy increase for SENTINEL (trend: {stability_trend:.1f}/tick)"
+                        f"Recommended autonomy increase for {incident_agent.name} (trend: {stability_trend:.1f}/tick)"
                     )
                     acted = True
 
@@ -138,7 +138,7 @@ class ExecutiveStrategyAgent(BaseAgent):
                 self.create_alert(
                     engine,
                     AlertSeverity.critical,
-                    f"APEX: Human strain at {metrics.humanStrain:.0f}%. "
+                    f"{self.model.name}: Human strain at {metrics.humanStrain:.0f}%. "
                     f"Emergency staffing resources required. Operations team overloaded.",
                 )
                 self.emit_event(
@@ -185,7 +185,7 @@ class ExecutiveStrategyAgent(BaseAgent):
                 self.create_alert(
                     engine,
                     AlertSeverity.critical,
-                    f"APEX: System trust critical at {metrics.systemTrust:.0f}%. "
+                    f"{self.model.name}: System trust critical at {metrics.systemTrust:.0f}%. "
                     f"Recommend manual review of autonomous decisions.",
                 )
                 self.record_action(f"Trust drop alert issued (trust: {metrics.systemTrust:.0f}%)")

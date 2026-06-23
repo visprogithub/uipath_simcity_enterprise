@@ -47,7 +47,7 @@ class ComplianceAgent(BaseAgent):
                 # Block the workflow and create approval request
                 wf.status = WorkflowStatus.blocked
                 self.record_action(
-                    f"VERITAS blocked high-risk workflow {wf.id} "
+                    f"{self.model.name} blocked high-risk workflow {wf.id} "
                     f"(risk={wf.risk:.2f}) — approval required"
                 )
 
@@ -105,7 +105,7 @@ class ComplianceAgent(BaseAgent):
                 self.create_alert(
                     engine,
                     AlertSeverity.warning,
-                    f"VERITAS: Workflow {wf.id} blocked pending approval "
+                    f"{self.model.name}: Workflow {wf.id} blocked pending approval "
                     f"(risk: {wf.risk:.2f}, type: {wf.type.value})",
                     workflow_id=wf.id,
                 )
@@ -118,7 +118,7 @@ class ComplianceAgent(BaseAgent):
                     self.create_alert(
                         engine,
                         AlertSeverity.critical,
-                        f"VERITAS: ESCALATING critical high-risk workflow {wf.id} "
+                        f"{self.model.name}: ESCALATING critical high-risk workflow {wf.id} "
                         f"(risk={wf.risk:.2f}) for executive review",
                         workflow_id=wf.id,
                     )

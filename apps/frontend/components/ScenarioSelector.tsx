@@ -3,6 +3,14 @@
 import { useState } from 'react';
 import { useGameStore } from '@/lib/store';
 import type { ScenarioInfo } from '@/lib/store';
+import { api } from '@/lib/api';
+
+const SLOT_ORDER = ['primary', 'secondary', 'infra', 'comms', 'orchestration', 'support', 'failover'] as const;
+const AGENT_ROLES = ['ops_coord', 'incident_resp', 'compliance', 'comms', 'exec_strategy'] as const;
+const AGENT_LABELS: Record<string, string> = {
+  ops_coord: 'Operations', incident_resp: 'Incident Response', compliance: 'Compliance',
+  comms: 'Communications', exec_strategy: 'Executive',
+};
 
 function SkeletonCard() {
   return (
@@ -136,17 +144,191 @@ function ScenarioCard({ scenario, isLoading, onSelect }: ScenarioCardProps) {
   );
 }
 
+function CreateScenarioCard({ onClick }: { onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="rounded-2xl border-2 border-dashed bg-bg-card/40 p-6 flex flex-col items-center justify-center gap-3 transition-all duration-200 cursor-pointer min-h-[260px]"
+      style={{
+        borderColor: hovered ? '#6366F1' : '#2a3555',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+      }}
+    >
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+        style={{ background: '#6366F122', border: '1px solid #6366F144' }}>
+        ✨
+      </div>
+      <h3 className="text-text-primary font-bold text-lg">Create Custom Scenario</h3>
+      <p className="text-text-dim text-sm text-center">Describe any industry — AI builds a full simulation you can review and launch.</p>
+    </button>
+  );
+}
+
+function CreateScenarioModal({ onClose, onLaunched }: { onClose: () => void; onLaunched: (id: string) => Promise<void> }) {
+  const [stage, setStage] = useState<'input' | 'generating' | 'preview' | 'launching'>('input');
+  const [description, setDescription] = useState('');
+  const [spec, setSpec] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate() {
+    setError(null);
+    setStage('generating');
+    try {
+      const res = await api('/api/scenario/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        let msg = t;
+        try { msg = JSON.parse(t).detail || t; } catch { /* keep raw */ }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      setSpec(data.spec);
+      setStage('preview');
+    } catch (e: any) {
+      setError(e.message || 'Generation failed');
+      setStage('input');
+    }
+  }
+
+  async function launch() {
+    setError(null);
+    setStage('launching');
+    try {
+      const res = await api('/api/scenario/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spec }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        let msg = t;
+        try { msg = JSON.parse(t).detail || t; } catch { /* keep raw */ }
+        throw new Error(msg);
+      }
+      const { id } = await res.json();
+      await onLaunched(id);
+    } catch (e: any) {
+      setError(e.message || 'Launch failed');
+      setStage('preview');
+    }
+  }
+
+  const setField = (k: string, v: any) => setSpec((s: any) => ({ ...s, [k]: v }));
+  const setSlot = (role: string, k: string, v: string) =>
+    setSpec((s: any) => ({ ...s, slots: { ...s.slots, [role]: { ...s.slots[role], [k]: v } } }));
+  const setAgent = (role: string, v: string) =>
+    setSpec((s: any) => ({ ...s, agents: { ...s.agents, [role]: v } }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-bg-card border border-border-dim rounded-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-text-primary">✨ Create Custom Scenario</h2>
+          <button onClick={onClose} className="text-text-dim hover:text-text-primary text-xl">✕</button>
+        </div>
+
+        {error && <div className="mb-3 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{error}</div>}
+
+        {(stage === 'input' || stage === 'generating') && (
+          <div className="space-y-3">
+            <p className="text-text-secondary text-sm">Describe the enterprise you want to simulate. The AI fleshes it into 7 systems, 5 agents, realistic compliance frameworks, and outage presets.</p>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. A busy international airport managing flights, baggage, and ground crews during a winter storm"
+              rows={4}
+              className="w-full rounded-lg bg-bg-panel border border-border-dim p-3 text-sm text-text-primary focus:border-accent-blue outline-none"
+            />
+            <button
+              onClick={generate}
+              disabled={stage === 'generating' || !description.trim()}
+              className="w-full py-2.5 rounded-lg text-sm font-semibold bg-accent-blue/20 border border-accent-blue/50 text-accent-blue disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {stage === 'generating' ? (<><span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />Generating…</>) : 'Generate Scenario →'}
+            </button>
+          </div>
+        )}
+
+        {stage !== 'input' && stage !== 'generating' && spec && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-[auto_1fr] gap-3 items-center">
+              <input value={spec.icon} onChange={(e) => setField('icon', e.target.value)} className="w-12 text-center text-2xl rounded-lg bg-bg-panel border border-border-dim p-2" />
+              <input value={spec.name} onChange={(e) => setField('name', e.target.value)} className="rounded-lg bg-bg-panel border border-border-dim p-2 text-text-primary font-bold" />
+            </div>
+            <textarea value={spec.tagline} onChange={(e) => setField('tagline', e.target.value)} rows={2} className="w-full rounded-lg bg-bg-panel border border-border-dim p-2 text-sm text-text-secondary" />
+
+            <div>
+              <div className="text-xs uppercase text-text-dim mb-2">7 Systems</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SLOT_ORDER.map((role) => spec.slots?.[role] && (
+                  <div key={role} className="flex items-center gap-2">
+                    <input value={spec.slots[role].icon} onChange={(e) => setSlot(role, 'icon', e.target.value)} className="w-10 text-center rounded bg-bg-panel border border-border-dim p-1.5" />
+                    <input value={spec.slots[role].name} onChange={(e) => setSlot(role, 'name', e.target.value)} className="flex-1 min-w-0 rounded bg-bg-panel border border-border-dim p-1.5 text-sm text-text-primary" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs uppercase text-text-dim mb-2">5 Agents</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {AGENT_ROLES.map((role) => (
+                  <div key={role} className="flex items-center gap-2">
+                    <span className="text-xs text-text-dim w-28 shrink-0">{AGENT_LABELS[role]}</span>
+                    <input value={spec.agents?.[role] ?? ''} onChange={(e) => setAgent(role, e.target.value)} className="flex-1 min-w-0 rounded bg-bg-panel border border-border-dim p-1.5 text-sm text-text-primary" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {(spec.compliance_frameworks ?? []).map((fw: string) => (
+                <span key={fw} className="text-xs px-2 py-0.5 rounded-full bg-bg-panel border border-border-dim text-text-dim">{fw}</span>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setStage('input')} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border-dim text-text-secondary">↻ Regenerate</button>
+              <button onClick={launch} disabled={stage === 'launching'} className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-accent-orange/20 border border-accent-orange/50 text-accent-orange disabled:opacity-50 flex items-center justify-center gap-2">
+                {stage === 'launching' ? (<><span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />Launching…</>) : 'Create & Launch →'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ScenarioSelector() {
   const availableScenarios = useGameStore((s) => s.availableScenarios);
   const scenarioLoading = useGameStore((s) => s.scenarioLoading);
   const selectScenario = useGameStore((s) => s.selectScenario);
+  const fetchScenarios = useGameStore((s) => s.fetchScenarios);
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   async function handleSelect(id: string) {
     setLoadingId(id);
     await selectScenario(id);
     setLoadingId(null);
+  }
+
+  async function handleLaunched(id: string) {
+    await fetchScenarios();   // refresh so the new scenario card shows on return
+    setShowCreate(false);
+    await handleSelect(id);
   }
 
   const showSkeletons = scenarioLoading && availableScenarios.length === 0;
@@ -182,6 +364,7 @@ export default function ScenarioSelector() {
                   onSelect={handleSelect}
                 />
               ))}
+          {!showSkeletons && <CreateScenarioCard onClick={() => setShowCreate(true)} />}
         </div>
 
         {/* Empty state (not loading, no scenarios) */}
@@ -200,6 +383,10 @@ export default function ScenarioSelector() {
           <span className="text-accent-orange font-semibold">UiPath Automation Platform</span>
         </p>
       </footer>
+
+      {showCreate && (
+        <CreateScenarioModal onClose={() => setShowCreate(false)} onLaunched={handleLaunched} />
+      )}
     </div>
   );
 }

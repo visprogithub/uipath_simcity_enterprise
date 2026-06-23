@@ -91,7 +91,7 @@ class CommunicationsAgent(BaseAgent):
                     self.create_alert(
                         engine,
                         AlertSeverity.warning,
-                        f"ECHO: {len(unacked_critical)} unacknowledged critical alerts. "
+                        f"{self.model.name}: {len(unacked_critical)} unacknowledged critical alerts. "
                         f"Increase autonomy to level 2 to enable auto-notification blast.",
                     )
                     acted = True

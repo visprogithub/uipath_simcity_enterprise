@@ -31,6 +31,7 @@ class Building(BaseModel):
     id: str
     type: BuildingType
     name: str
+    icon: str = ""  # emoji shown on the building sprite; decouples visual from structural type
     pos: BuildingPosition
     status: BuildingStatus = BuildingStatus.operational
     health: float = Field(100.0, ge=0.0, le=100.0)

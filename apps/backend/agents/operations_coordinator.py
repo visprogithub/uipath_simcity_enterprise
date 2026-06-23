@@ -135,7 +135,7 @@ class OperationsCoordinator(BaseAgent):
                 self.create_alert(
                     engine,
                     AlertSeverity.warning,
-                    f"ARIA recommends manual rerouting: {blocked_count} workflows blocked. "
+                    f"{self.model.name} recommends manual rerouting: {blocked_count} workflows blocked. "
                     f"Increase autonomy to level 2 to enable auto-rerouting.",
                 )
                 self.record_action(f"Recommended rerouting for {blocked_count} blocked workflows")

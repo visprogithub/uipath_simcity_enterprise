@@ -1,0 +1,5 @@
+{
+    "graphs": {
+      "scenario_gen": "./main.py:graph"
+    }
+}

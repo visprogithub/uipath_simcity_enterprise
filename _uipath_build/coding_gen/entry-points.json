@@ -1,0 +1,76 @@
+{
+    "$schema": "https://cloud.uipath.com/draft/2024-12/entry-point",
+    "$id": "entry-points.json",
+    "entryPoints": [
+        {
+            "filePath": "coding_gen",
+            "uniqueId": "11c3621e-038b-43e7-af63-f54287782ea0",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "system": {
+                        "default": "",
+                        "title": "System",
+                        "type": "string"
+                    },
+                    "user": {
+                        "default": "",
+                        "title": "User",
+                        "type": "string"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "title": "Text",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "text"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_llm",
+                        "name": "run_llm",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_llm",
+                        "label": null
+                    },
+                    {
+                        "source": "run_llm",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        }
+    ]
+}

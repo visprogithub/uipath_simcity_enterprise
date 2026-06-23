@@ -1,0 +1,5 @@
+{
+    "graphs": {
+      "coding_gen": "./main.py:graph"
+    }
+}

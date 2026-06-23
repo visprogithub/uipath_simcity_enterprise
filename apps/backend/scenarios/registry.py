@@ -1,14 +1,15 @@
-from scenarios.healthcare import get_scenario as get_healthcare
-from scenarios.financial_services import get_scenario as get_financial
-from scenarios.retail_ecommerce import get_scenario as get_retail
-from scenarios.manufacturing import get_scenario as get_manufacturing
+"""Scenario registry. Built scenarios come from compact specs via the factory.
+Custom (AI-generated) scenarios can be registered at runtime with register_custom_spec()."""
+from typing import Any, Dict, List
 
-SCENARIO_REGISTRY = {
-    "healthcare": get_healthcare(),
-    "financial_services": get_financial(),
-    "retail_ecommerce": get_retail(),
-    "manufacturing": get_manufacturing(),
-}
+from scenarios.factory import build_scenario
+from scenarios.specs import SPECS
+
+# Build all default scenarios from their specs
+SCENARIO_REGISTRY = {spec["id"]: build_scenario(spec) for spec in SPECS}
+
+# Track which scenario ids were user-created (vs built-in defaults)
+_CUSTOM_IDS: set = set()
 
 
 def get_scenario(scenario_id: str):
@@ -18,20 +19,23 @@ def get_scenario(scenario_id: str):
     return s
 
 
-def list_scenarios():
-    return [
-        {
-            "id": s.id,
-            "name": s.name,
-            "tagline": s.tagline,
-            "description": s.description,
-            "industry": s.industry,
-            "icon": s.icon,
-            "color": s.color,
-            "buildingCount": len(s.buildings),
-            "agentCount": len(s.agents),
-            "complianceFrameworks": s.compliance_frameworks,
-            "outagePresets": s.outage_presets,
-        }
-        for s in SCENARIO_REGISTRY.values()
-    ]
+def register_custom_spec(spec: Dict[str, Any]):
+    """Validate + build a custom scenario spec and register it live. Returns the definition."""
+    definition = build_scenario(spec)  # raises if the spec is malformed
+    SCENARIO_REGISTRY[definition.id] = definition
+    _CUSTOM_IDS.add(definition.id)
+    return definition
+
+
+def _card(s) -> Dict[str, Any]:
+    return {
+        "id": s.id, "name": s.name, "tagline": s.tagline, "description": s.description,
+        "industry": s.industry, "icon": s.icon, "color": s.color,
+        "buildingCount": len(s.buildings), "agentCount": len(s.agents),
+        "complianceFrameworks": s.compliance_frameworks, "outagePresets": s.outage_presets,
+        "custom": s.id in _CUSTOM_IDS,
+    }
+
+
+def list_scenarios() -> List[Dict[str, Any]]:
+    return [_card(s) for s in SCENARIO_REGISTRY.values()]

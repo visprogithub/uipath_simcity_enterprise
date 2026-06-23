@@ -45,12 +45,12 @@ class IncidentResponseAgent(BaseAgent):
             self.create_alert(
                 engine,
                 AlertSeverity.critical,
-                f"SENTINEL: CloudCore health critical at {cloud.health:.0f}%. "
+                f"{self.model.name}: {cloud.name} health critical at {cloud.health:.0f}%. "
                 f"Cascade failure risk elevated. Immediate intervention required.",
                 building_id="cloud_datacenter",
             )
             self.record_action(
-                f"Detected CloudCore health drop to {cloud.health:.0f}%"
+                f"Detected {cloud.name} health drop to {cloud.health:.0f}%"
             )
             acted = True
 
@@ -115,7 +115,7 @@ class IncidentResponseAgent(BaseAgent):
             self.create_alert(
                 engine,
                 AlertSeverity.critical,
-                f"SENTINEL: CRISIS DETECTED — {len(degraded_buildings)} buildings degraded simultaneously: "
+                f"{self.model.name}: CRISIS DETECTED — {len(degraded_buildings)} buildings degraded simultaneously: "
                 f"{', '.join(degraded_names)}. Cascade propagation in progress.",
             )
             acted = True
@@ -171,8 +171,8 @@ class IncidentResponseAgent(BaseAgent):
                     self.create_alert(
                         engine,
                         AlertSeverity.critical,
-                        f"SENTINEL: {critical_bld.name} is OFFLINE. "
-                        f"Patient services severely impacted. Emergency protocol activated.",
+                        f"{self.model.name}: {critical_bld.name} is OFFLINE. "
+                        f"Critical services severely impacted. Emergency protocol activated.",
                         building_id=critical_bld.id,
                     )
                     self.record_action(f"Critical alert: {critical_bld.name} offline")

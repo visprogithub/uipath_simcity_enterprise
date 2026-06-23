@@ -22,6 +22,7 @@ export interface Building {
   id: string;
   type: BuildingType;
   name: string;
+  icon?: string;          // emoji shown on the sprite (decoupled from structural type)
   pos: BuildingPosition;
   status: BuildingStatus;
   health: number;       // 0-100

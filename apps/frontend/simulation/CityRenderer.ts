@@ -278,8 +278,16 @@ export class CityRenderer {
     highlight.endFill();
     container.addChild(highlight);
 
-    // Symbol / icon
-    this.drawBuildingSymbol(container, building.type, w, h);
+    // Symbol / icon — prefer the building's own emoji (scenario-specific); fall back to type glyph
+    if (building.icon) {
+      const icon = new PIXI.Text(building.icon, { fontSize: Math.min(w, h) * 0.42 });
+      icon.anchor.set(0.5);
+      icon.x = w / 2;
+      icon.y = h / 2 - 6;
+      container.addChild(icon);
+    } else {
+      this.drawBuildingSymbol(container, building.type, w, h);
+    }
 
     // Name label
     const label = new PIXI.Text(building.name, {

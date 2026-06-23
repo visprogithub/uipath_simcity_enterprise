@@ -1,0 +1,6 @@
+{
+  "ProjectType": "Agent",
+  "Name": "coding_gen",
+  "Description": "Maestro City coding agent (XAML / entity / debug generation)",
+  "MainFile": null
+}

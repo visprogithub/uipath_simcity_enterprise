@@ -15,6 +15,7 @@ from api.enterprise_systems import router as enterprise_router
 from api.agent_builder import router as agent_builder_router
 from api.coding_agent import router as coding_agent_router
 from api.approvals import router as approvals_router
+from api.scenario_generator import router as scenario_generator_router
 from simulation.engine import engine
 
 logging.basicConfig(
@@ -68,6 +69,7 @@ app.include_router(enterprise_router)
 app.include_router(agent_builder_router)
 app.include_router(coding_agent_router)
 app.include_router(approvals_router)
+app.include_router(scenario_generator_router)
 
 
 # WebSocket endpoint
