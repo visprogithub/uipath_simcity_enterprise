@@ -331,6 +331,16 @@ class SimulationEngine:
             )
 
     def apply_action(self, action: PlayerAction) -> Dict[str, Any]:
+        """Apply a player action and surface any failure as a visible alert (fail-forward)."""
+        result = self._dispatch_action(action)
+        if isinstance(result, dict) and not result.get("success", True):
+            self.create_alert(
+                AlertSeverity.warning,
+                f"Action failed: {result.get('error', 'unknown error')}",
+            )
+        return result
+
+    def _dispatch_action(self, action: PlayerAction) -> Dict[str, Any]:
         """Dispatch player action to appropriate handler."""
         try:
             # Capture metrics snapshot before action for intervention tracking

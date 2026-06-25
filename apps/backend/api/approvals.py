@@ -82,6 +82,16 @@ async def get_pending_approvals() -> Dict[str, Any]:
     Returns all pending approval items from the UiPath Action Center queue,
     plus any unacknowledged critical-severity alerts that need human attention.
     """
+    # Auto-expire approvals past their SLA so the queue can't grow unbounded.
+    timeout_seconds = 5 * 60
+    now = time.time()
+    expired = [
+        aid for aid, a in engine.uipath_client._pending_approvals.items()
+        if now > a.createdAt + timeout_seconds
+    ]
+    for aid in expired:
+        del engine.uipath_client._pending_approvals[aid]
+
     # UiPath Action Center approvals
     uipath_items = [
         _serialize_approval(approval)

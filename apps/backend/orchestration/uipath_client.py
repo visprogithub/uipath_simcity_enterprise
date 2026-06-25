@@ -203,28 +203,25 @@ class UiPathClient:
             }),
         )
 
-        if not self._configured:
-            # Simulate the job without real UiPath
-            sim_job.state = "Running"
-            self._active_jobs[job_id] = sim_job
-            logger.info(f"Simulated UiPath job: {process_name} (id={job_id})")
+        def _fault(reason: str) -> UiPathJob:
+            # Fail-forward: surface the failure as a Faulted job in the UI — never fake success.
+            sim_job.state = "Faulted"
+            sim_job.simulationContext = reason
+            self._active_jobs[sim_job.id] = sim_job
+            logger.error(f"UiPath job '{process_name}' faulted: {reason}")
             return sim_job
+
+        if not self._configured:
+            return _fault("UiPath not configured — set UiPath credentials in the backend .env")
 
         token = await self._get_token()
         if not token:
-            sim_job.state = "Running"
-            self._active_jobs[job_id] = sim_job
-            logger.warning(f"UiPath token unavailable, simulating job: {process_name}")
-            return sim_job
+            return _fault("UiPath auth unavailable — could not obtain an access token")
 
         try:
             release_key = await self.get_release_key(process_name)
             if not release_key:
-                # Still track as simulated job
-                sim_job.state = "Running"
-                self._active_jobs[job_id] = sim_job
-                logger.warning(f"Release key not found for {process_name}, running simulated")
-                return sim_job
+                return _fault(f"Process '{process_name}' is not published to the configured folder")
 
             url = self._build_orchestrator_url(
                 "odata/Jobs/UiPath.Server.Configuration.OData.StartJobs"
@@ -264,19 +261,9 @@ class UiPathClient:
             return sim_job
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                f"Failed to start UiPath job {process_name} "
-                f"(HTTP {e.response.status_code}): {e.response.text[:200]}"
-            )
-            # Fall back to simulation
-            sim_job.state = "Running"
-            self._active_jobs[job_id] = sim_job
-            return sim_job
+            return _fault(f"StartJobs failed: HTTP {e.response.status_code} {e.response.text[:150]}")
         except Exception as e:
-            logger.error(f"Error starting UiPath job {process_name}: {e}")
-            sim_job.state = "Running"
-            self._active_jobs[job_id] = sim_job
-            return sim_job
+            return _fault(f"StartJobs error: {e}")
 
     def set_orchestration_mode(self, mode: str) -> str:
         """Switch between 'direct' (per-agent jobs) and 'maestro' (single Maestro Case)."""

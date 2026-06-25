@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/lib/store';
 import { api } from '@/lib/api';
+import { elapsedSeconds, timeAgo as formatTimeAgo } from '@/lib/time';
 import type { UiPathJob, UiPathApproval } from '@/types/game';
 import clsx from 'clsx';
 
@@ -100,7 +101,7 @@ function JobStateTag({ state }: { state: UiPathJob['state'] }) {
 }
 
 function JobCard({ job }: { job: UiPathJob }) {
-  const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
+  const elapsed = elapsedSeconds(job.startedAt);
   const elapsedStr =
     elapsed < 60
       ? `${elapsed}s`
@@ -168,22 +169,25 @@ export default function UiPathStatusPanel() {
 
   const uipath = simState?.uipathStatus;
 
+  // Resolve via the real approvals endpoints (same as the Human Approvals modal),
+  // not a local alert ack — so the pending approval is actually cleared backend-side.
   const handleApprove = (id: string) => {
-    // Approval grants the pending workflow
-    sendAction({ type: 'acknowledge_alert', alertId: id });
+    api(`/api/approvals/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approvedBy: 'Operator' }),
+    }).catch(() => {});
   };
 
   const handleReject = (id: string) => {
-    sendAction({ type: 'acknowledge_alert', alertId: id });
+    api(`/api/approvals/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rejectedBy: 'Operator', reason: 'Rejected from UiPath panel' }),
+    }).catch(() => {});
   };
 
-  const lastSyncStr = uipath?.lastSync
-    ? (() => {
-        const seconds = Math.floor((Date.now() - uipath.lastSync) / 1000);
-        if (seconds < 60) return `${seconds}s ago`;
-        return `${Math.floor(seconds / 60)}m ago`;
-      })()
-    : 'Never';
+  const lastSyncStr = uipath?.lastSync ? formatTimeAgo(uipath.lastSync) : 'Never';
 
   return (
     <div className="space-y-3 p-2">

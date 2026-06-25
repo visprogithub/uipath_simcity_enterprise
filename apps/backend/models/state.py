@@ -80,6 +80,8 @@ class UiPathApproval(BaseModel):
     requestedBy: str
     severity: AlertSeverity = AlertSeverity.warning
     createdAt: float
+    # Workflow this approval gates — used to dedupe (one pending approval per workflow).
+    workflowId: Optional[str] = None
 
 
 class UiPathStatus(BaseModel):

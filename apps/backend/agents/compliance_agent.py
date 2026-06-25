@@ -34,9 +34,13 @@ class ComplianceAgent(BaseAgent):
         acted = False
 
         # ─── Process high-risk workflows ──────────────────────────────────
+        # Gate (a) anything genuinely high-risk, OR (b) any approval_request workflow —
+        # those are compliance-sensitive by definition, so they should reliably require a
+        # human, not depend on the risk score landing in a narrow band.
         high_risk_wfs = [
             w for w in workflows
-            if w.risk > 0.7 and w.status not in (WorkflowStatus.failed, WorkflowStatus.blocked)
+            if (w.risk > 0.7 or w.type == WorkflowType.approval_request)
+            and w.status not in (WorkflowStatus.failed, WorkflowStatus.blocked)
         ]
 
         for wf in high_risk_wfs[:2]:  # handle up to 2 per tick
@@ -51,8 +55,13 @@ class ComplianceAgent(BaseAgent):
                     f"(risk={wf.risk:.2f}) — approval required"
                 )
 
-                # Create a pending approval in UiPath
-                if (tick - self._last_approval_tick) >= 5:
+                # Create a pending approval in UiPath — but only one per workflow
+                # (dedupe), and rate-limited, so the queue can't grow unbounded.
+                already_pending = any(
+                    a.workflowId == wf.id
+                    for a in engine.uipath_client._pending_approvals.values()
+                )
+                if not already_pending and (tick - self._last_approval_tick) >= 5:
                     self._last_approval_tick = tick
                     approval = UiPathApproval(
                         id=f"appr-{uuid.uuid4().hex[:8]}",
@@ -66,6 +75,7 @@ class ComplianceAgent(BaseAgent):
                         requestedBy=self.model.id,
                         severity=AlertSeverity.warning if wf.priority != WorkflowPriority.critical else AlertSeverity.critical,
                         createdAt=__import__("time").time(),
+                        workflowId=wf.id,
                     )
                     engine.uipath_client._pending_approvals[approval.id] = approval
 

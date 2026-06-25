@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { useGameStore } from '@/lib/store';
+import { elapsedSeconds } from '@/lib/time';
 import type { Agent, AutonomyLevel } from '@/types/game';
 import clsx from 'clsx';
 
@@ -47,7 +48,7 @@ function AgentAutonomyCard({
   const color = LEVEL_COLORS[agent.autonomyLevel];
 
   const timeAgo = () => {
-    const seconds = Math.floor((Date.now() - agent.lastActionAt) / 1000);
+    const seconds = elapsedSeconds(agent.lastActionAt);
     if (seconds < 60) return `${seconds}s`;
     return `${Math.floor(seconds / 60)}m`;
   };

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '@/lib/store';
+import { timeAgo as formatTimeAgo } from '@/lib/time';
 import type { Alert } from '@/types/game';
 import clsx from 'clsx';
 
@@ -12,13 +13,7 @@ function AlertItem({
   alert: Alert;
   onAcknowledge: (id: string) => void;
 }) {
-  const timeAgo = () => {
-    const seconds = Math.floor((Date.now() - alert.timestamp) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    return `${Math.floor(minutes / 60)}h ago`;
-  };
+  const timeAgo = () => formatTimeAgo(alert.timestamp);
 
   const severityConfig = {
     critical: {
