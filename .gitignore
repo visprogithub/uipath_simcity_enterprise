@@ -5,11 +5,16 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
-.env
 .venv
 venv/
 env/
 dist/
+
+# Secrets — ignore every env file except the committed example templates
+.env
+.env.*
+!.env.example
+!*.env.example
 
 # Node / Next.js
 node_modules/
@@ -48,3 +53,20 @@ BRAND.md
 THEMES.md
 apps/frontend/.env.local
 demo/householdchoreexample.png
+
+# Generated UiPath agent packages
+/_uipath_build/agents_sep/
+
+# UiPath build artifacts & CLI caches (regenerated; may cache auth tokens — never commit)
+_uipath_build/**/.local/
+_uipath_build/**/.uipath/
+_uipath_build/**/build/
+_uipath_build/**/out/
+_uipath_build/**/*.nupkg
+_uipath_build/**/*.dll
+_uipath_build/**/*.pdb
+.metrics/
+
+demo/*
+.playwright-mcp/*
+apps/backend/Procfile

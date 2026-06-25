@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Download, Copy, Bug, CheckCircle2, Loader2 } from 'lucide-react';
 import { useGameStore } from '@/lib/store';
+import { api } from '@/lib/api';
 import clsx from 'clsx';
 
 const PROCESS_OPTIONS = [
@@ -114,18 +115,18 @@ export default function CodeGenModal() {
     setLoading(true);
     setLocalResult(null);
     try {
-      const res = await fetch('/api/coding-agent/generate', {
+      const res = await api('/api/coding-agent/generate-workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          processName: selectedProcess,
-          simulationContext: simState
+          processType: selectedProcess,
+          context: simState
             ? {
                 phase: simState.phase,
                 tick: simState.tick,
                 metrics: simState.metrics,
               }
-            : undefined,
+            : {},
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -143,12 +144,12 @@ export default function CodeGenModal() {
     setDebugLoading(true);
     setDebugResult(null);
     try {
-      const res = await fetch('/api/coding-agent/debug', {
+      const res = await api('/api/coding-agent/debug-workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          errorDescription: errorDesc,
-          processName: selectedProcess,
+          workflow_id: selectedProcess,
+          error_description: errorDesc,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

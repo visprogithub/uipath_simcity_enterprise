@@ -53,6 +53,15 @@ class UiPathClient:
         self._job_callbacks: Dict[str, List[Callable]] = {}
         self._configured: bool = self._check_configured()
 
+        # Orchestration mode: "direct" = agents fire individual Orchestrator jobs;
+        # "maestro" = agent actions are routed into a single published Maestro Case
+        # instance (MaestroCity_PipelineTest) that orchestrates the agents + human approval.
+        self.orchestration_mode: str = os.getenv("UIPATH_ORCHESTRATION_MODE", "direct").lower()
+        self.maestro_case_process: str = os.getenv("UIPATH_MAESTRO_CASE_PROCESS", "MaestroCity_PipelineTest")
+        self._last_maestro_start: float = 0.0
+        # Dedupe window: one Maestro Case instance per burst of agent actions.
+        self._maestro_cooldown: float = float(os.getenv("UIPATH_MAESTRO_COOLDOWN_SECONDS", "25"))
+
         # Resolve agent process names from env vars (allow override per-agent)
         self._agent_processes: Dict[str, str] = {
             agent_id: os.getenv(
@@ -159,7 +168,27 @@ class UiPathClient:
         input_args: dict,
         folder_id: Optional[str] = None,
     ) -> Optional[UiPathJob]:
-        """Start a UiPath automation job."""
+        """Start a UiPath automation job.
+
+        In "maestro" orchestration mode, individual agent process calls are folded
+        into a single published Maestro Case instance instead of firing separately.
+        """
+        if (
+            self.orchestration_mode == "maestro"
+            and self._configured
+            and process_name != self.maestro_case_process
+        ):
+            now = time.time()
+            if now - self._last_maestro_start < self._maestro_cooldown:
+                # A Maestro Case is already orchestrating this burst — don't spawn another.
+                logger.info(
+                    f"Maestro mode: '{process_name}' folded into the active Maestro Case "
+                    f"(within {self._maestro_cooldown:.0f}s window)"
+                )
+                return None
+            self._last_maestro_start = now
+            return await self._start_maestro_case(process_name, input_args, folder_id)
+
         # Create a simulation-tracked job regardless of UiPath connection
         job_id = f"sim-{uuid.uuid4().hex[:8]}"
         sim_job = UiPathJob(
@@ -248,6 +277,88 @@ class UiPathClient:
             sim_job.state = "Running"
             self._active_jobs[job_id] = sim_job
             return sim_job
+
+    def set_orchestration_mode(self, mode: str) -> str:
+        """Switch between 'direct' (per-agent jobs) and 'maestro' (single Maestro Case)."""
+        mode = (mode or "").lower()
+        if mode not in ("direct", "maestro"):
+            raise ValueError("orchestration mode must be 'direct' or 'maestro'")
+        self.orchestration_mode = mode
+        self._last_maestro_start = 0.0  # allow an immediate Maestro start after switching
+        logger.info(f"Orchestration mode set to '{mode}'")
+        return mode
+
+    async def _start_maestro_case(
+        self, triggering_process: str, input_args: dict, folder_id: Optional[str] = None
+    ) -> Optional[UiPathJob]:
+        """Start a real Maestro Case instance via StartJobs.
+
+        Fail-forward: if auth/release/start fails, the job is surfaced as Faulted in the
+        UI with the reason — never a silently faked success.
+        """
+        job_id = f"maestro-{uuid.uuid4().hex[:8]}"
+        job = UiPathJob(
+            id=job_id,
+            processName=f"Maestro Case ◆ {self.maestro_case_process}",
+            state="Pending",
+            startedAt=time.time(),
+            simulationContext=f"triggered by {triggering_process}",
+        )
+
+        def _fault(reason: str) -> UiPathJob:
+            job.state = "Faulted"
+            job.simulationContext = reason
+            self._active_jobs[job.id] = job
+            logger.error(f"Maestro Case start failed ({triggering_process}): {reason}")
+            return job
+
+        token = await self._get_token()
+        if not token:
+            return _fault("UiPath auth unavailable — could not start Maestro Case")
+
+        release_key = await self.get_release_key(self.maestro_case_process)
+        if not release_key:
+            return _fault(f"Maestro Case '{self.maestro_case_process}' is not published to this folder")
+
+        try:
+            url = self._build_orchestrator_url(
+                "odata/Jobs/UiPath.Server.Configuration.OData.StartJobs"
+            )
+            payload = {
+                "startInfo": {
+                    "ReleaseKey": release_key,
+                    "Strategy": "ModernJobsCount",
+                    "RuntimeType": "Serverless",
+                    "JobsCount": 1,
+                    "InputArguments": json.dumps(
+                        {"triggeringProcess": triggering_process, **input_args}
+                    ),
+                }
+            }
+            effective_folder = folder_id or self.folder_id
+            if effective_folder:
+                payload["startInfo"]["OrganizationUnitId"] = int(effective_folder)
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    url, headers=self._build_headers(token), json=payload
+                )
+                response.raise_for_status()
+                jobs_created = response.json().get("value", [{}])
+                if jobs_created:
+                    job.id = str(jobs_created[0].get("Id", job_id))
+                job.state = "Running"
+
+            self._active_jobs[job.id] = job
+            logger.info(
+                f"Started Maestro Case '{self.maestro_case_process}' (id={job.id}) "
+                f"triggered by {triggering_process}"
+            )
+            return job
+        except httpx.HTTPStatusError as e:
+            return _fault(f"Maestro Case start failed: HTTP {e.response.status_code} {e.response.text[:150]}")
+        except Exception as e:
+            return _fault(f"Maestro Case start error: {e}")
 
     async def get_job_status(self, job_id: str) -> Optional[UiPathJob]:
         """Get the current status of a UiPath job."""

@@ -128,8 +128,10 @@ class MetricsCalculator:
         Percentage of critical workflows (hospital, pharmacy-related) that are flowing.
         Also accounts for whether hospital and pharmacy are operational.
         """
-        hospital = next((b for b in buildings if b.id == "hospital"), None)
-        pharmacy = next((b for b in buildings if b.id == "pharmacy"), None)
+        # Resolve the two primary service buildings by TYPE so this works in every
+        # scenario (including custom ones), not just healthcare.
+        hospital = next((b for b in buildings if b.type == "hospital"), None)
+        pharmacy = next((b for b in buildings if b.type == "pharmacy"), None)
 
         # Critical building health contribution (50% of score)
         building_score = 0.0
@@ -139,9 +141,10 @@ class MetricsCalculator:
             building_score += pharmacy.health * 0.5
 
         # Critical workflow flow rate (50% of score)
+        critical_ids = {b.id for b in (hospital, pharmacy) if b}
         critical_workflows = [
             w for w in workflows
-            if w.sourceId in ("hospital", "pharmacy") or w.destId in ("hospital", "pharmacy")
+            if w.sourceId in critical_ids or w.destId in critical_ids
         ]
 
         if critical_workflows:
@@ -181,7 +184,7 @@ class MetricsCalculator:
         """
         base_capacity = resource_manager.recoveryCapacity
 
-        backup = next((b for b in buildings if b.id == "backup_infra"), None)
+        backup = next((b for b in buildings if b.type == "backup_infra"), None)
         if backup:
             # If backup is degraded, recovery capacity ceiling is lower
             capacity = min(base_capacity, backup.health * 0.9 + 10.0)

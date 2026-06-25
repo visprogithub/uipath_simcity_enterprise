@@ -1,0 +1,34 @@
+# Render Blueprint — backend only (stateful tick loop + WebSocket).
+# The frontend deploys to Vercel; see README.md "Deploy" section.
+#
+# Secrets are NOT stored here. Every `sync: false` var must be set in the
+# Render dashboard (Environment tab) so nothing sensitive is committed.
+services:
+  - type: web
+    name: maestro-city-backend
+    runtime: python
+    rootDir: apps/backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/orchestration/mode
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # ─── UiPath (set real values in the dashboard, never here) ───
+      - key: UIPATH_CLOUD_URL
+        sync: false
+      - key: UIPATH_ORGANIZATION
+        sync: false
+      - key: UIPATH_TENANT
+        sync: false
+      - key: UIPATH_CLIENT_ID
+        sync: false
+      - key: UIPATH_CLIENT_SECRET
+        sync: false
+      - key: UIPATH_FOLDER_ID
+        sync: false
+      # ─── Orchestration default (direct | maestro) ───
+      - key: UIPATH_ORCHESTRATION_MODE
+        value: direct

@@ -1,8 +1,86 @@
 'use client';
 
+import { useState } from 'react';
 import { useGameStore } from '@/lib/store';
+import { api } from '@/lib/api';
 import type { UiPathJob, UiPathApproval } from '@/types/game';
 import clsx from 'clsx';
+
+function OrchestrationModeSwitch({
+  mode,
+  caseProcess,
+  connected,
+}: {
+  mode: 'direct' | 'maestro';
+  caseProcess?: string;
+  connected: boolean;
+}) {
+  const [pending, setPending] = useState<'direct' | 'maestro' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function selectMode(next: 'direct' | 'maestro') {
+    if (next === mode || pending) return;
+    setPending(next);
+    setError(null);
+    try {
+      const res = await api('/api/orchestration/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: next }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      // The next simulation state push reflects the new mode.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to switch mode');
+    } finally {
+      setPending(null);
+    }
+  }
+
+  const options: { id: 'direct' | 'maestro'; label: string; hint: string }[] = [
+    { id: 'direct', label: 'Direct', hint: 'Agents fire individual Orchestrator jobs' },
+    { id: 'maestro', label: 'Maestro Case', hint: `Routed through ${caseProcess || 'the Maestro Case'}` },
+  ];
+
+  return (
+    <div className="bg-bg-card border border-border-dim rounded-lg p-2.5 space-y-2">
+      <div className="text-xs text-text-dim font-semibold">Orchestration Mode</div>
+      <div className="grid grid-cols-2 gap-1 p-0.5 bg-bg-base rounded-md border border-border-dim">
+        {options.map((opt) => {
+          const active = mode === opt.id;
+          const loading = pending === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => selectMode(opt.id)}
+              disabled={!connected || !!pending}
+              className={clsx(
+                'rounded px-2 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                active
+                  ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40'
+                  : 'text-text-dim hover:text-text-primary border border-transparent'
+              )}
+            >
+              {loading ? '…' : opt.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="text-xs text-text-dim leading-snug">
+        {options.find((o) => o.id === mode)?.hint}
+      </div>
+      {!connected && (
+        <div className="text-xs text-accent-warning">
+          Connect UiPath to switch modes.
+        </div>
+      )}
+      {error && <div className="text-xs text-accent-danger">{error}</div>}
+    </div>
+  );
+}
 
 function JobStateTag({ state }: { state: UiPathJob['state'] }) {
   const config = {
@@ -133,6 +211,13 @@ export default function UiPathStatusPanel() {
           <span className="text-xs text-text-dim font-mono">Sync: {lastSyncStr}</span>
         </div>
       </div>
+
+      {/* Orchestration mode switch */}
+      <OrchestrationModeSwitch
+        mode={uipath?.orchestrationMode ?? 'direct'}
+        caseProcess={uipath?.maestroCaseProcess}
+        connected={!!uipath?.connected}
+      />
 
       {/* Active Jobs */}
       <div className="space-y-1.5">

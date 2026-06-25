@@ -43,10 +43,10 @@ class PhaseDetector:
         critical_count = sum(1 for b in buildings if b.status == BuildingStatus.critical)
         degraded_count = sum(1 for b in buildings if b.status == BuildingStatus.degraded)
 
-        # Check critical buildings specifically
-        hospital = next((b for b in buildings if b.id == "hospital"), None)
-        pharmacy = next((b for b in buildings if b.id == "pharmacy"), None)
-        cloud = next((b for b in buildings if b.id == "cloud_datacenter"), None)
+        # Check critical buildings by TYPE so phase detection works in every scenario.
+        hospital = next((b for b in buildings if b.type == "hospital"), None)
+        pharmacy = next((b for b in buildings if b.type == "pharmacy"), None)
+        cloud = next((b for b in buildings if b.type == "cloud_datacenter"), None)
 
         critical_services_down = (
             (hospital and hospital.status in (BuildingStatus.offline, BuildingStatus.critical)) or

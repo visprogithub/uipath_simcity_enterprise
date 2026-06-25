@@ -238,6 +238,27 @@ async def get_process_templates() -> Dict[str, Any]:
     return templates
 
 
+@router.get("/api/orchestration/mode")
+async def get_orchestration_mode() -> Dict[str, Any]:
+    """Return the current orchestration mode and the Maestro Case process name."""
+    client = engine.uipath_client
+    return {
+        "mode": client.orchestration_mode,
+        "maestroCaseProcess": client.maestro_case_process,
+        "configured": client._configured,
+    }
+
+
+@router.post("/api/orchestration/mode")
+async def set_orchestration_mode(body: Dict[str, Any]) -> Dict[str, Any]:
+    """Switch orchestration between 'direct' (per-agent jobs) and 'maestro' (single Maestro Case)."""
+    try:
+        mode = engine.uipath_client.set_orchestration_mode(body.get("mode", ""))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"mode": mode, "maestroCaseProcess": engine.uipath_client.maestro_case_process}
+
+
 @router.post("/api/scenario/reset")
 async def reset_scenario() -> Dict[str, Any]:
     """Reset the simulation to initial state for a new scenario run."""

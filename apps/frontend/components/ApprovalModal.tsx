@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle2, XCircle, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useGameStore } from '@/lib/store';
+import { api } from '@/lib/api';
 import clsx from 'clsx';
 
 function CountdownTimer({ autoEscalateAt }: { autoEscalateAt?: number }) {
@@ -157,11 +158,24 @@ export default function ApprovalModal() {
     setLocalApprovals(pendingApprovals);
   }, [pendingApprovals]);
 
+  // Fetch immediately on open and poll while the modal is open so new
+  // VERITAS-gated approvals appear without reopening.
+  useEffect(() => {
+    if (!approvalsOpen) return;
+    fetchApprovals();
+    const id = setInterval(fetchApprovals, 3000);
+    return () => clearInterval(id);
+  }, [approvalsOpen, fetchApprovals]);
+
   if (!approvalsOpen) return null;
 
   async function handleApprove(id: string) {
     try {
-      await fetch(`/api/approvals/${id}/approve`, { method: 'POST' });
+      await api(`/api/approvals/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approvedBy: 'Operator' }),
+      });
     } catch {
       // ignore
     }
@@ -171,10 +185,10 @@ export default function ApprovalModal() {
 
   async function handleReject(id: string, reason: string) {
     try {
-      await fetch(`/api/approvals/${id}/reject`, {
+      await api(`/api/approvals/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ rejectedBy: 'Operator', reason }),
       });
     } catch {
       // ignore

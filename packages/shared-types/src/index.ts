@@ -155,6 +155,9 @@ export interface UiPathStatus {
   activeJobs: UiPathJob[];
   pendingApprovals: UiPathApproval[];
   lastSync: number;
+  /** "direct" = per-agent Orchestrator jobs; "maestro" = routed through the Maestro Case. */
+  orchestrationMode?: 'direct' | 'maestro';
+  maestroCaseProcess?: string;
 }
 
 export interface UiPathJob {

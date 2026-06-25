@@ -182,8 +182,10 @@ class WorkflowEngine:
         Attempt to reroute a workflow through backup or orchestration center.
         Returns True if rerouting is possible.
         """
-        orch = building_map.get("orchestration_center")
-        backup = building_map.get("backup_infra")
+        # building_map is keyed by id; resolve the orchestration/backup buildings by TYPE
+        # so rerouting works across all scenarios.
+        orch = next((b for b in building_map.values() if b.type == "orchestration_center"), None)
+        backup = next((b for b in building_map.values() if b.type == "backup_infra"), None)
 
         # Reroute via orchestration_center if available
         if orch and _is_usable(orch) and orch.health > 40:
@@ -199,14 +201,21 @@ class WorkflowEngine:
     def generate_workflow(self, buildings: List[Building]) -> Optional[Workflow]:
         """Create a contextually appropriate new workflow based on building states."""
         building_map: Dict[str, Building] = {b.id: b for b in buildings}
+        # Templates reference building TYPES (consistent across every scenario via the
+        # slot factory) rather than scenario-specific ids, so workflows — including the
+        # high-risk approval_request flows that drive human approvals — generate in ALL
+        # scenarios, not just healthcare.
+        type_map: Dict[str, Building] = {}
+        for _b in buildings:
+            type_map.setdefault(_b.type, _b)
 
         # Weight templates by how relevant they are given current state
         weighted: List[Tuple[float, Tuple[WorkflowType, str, str, WorkflowPriority, float]]] = []
 
         for template in _WORKFLOW_TEMPLATES:
-            wf_type, src_id, dst_id, priority, risk = template
-            src = building_map.get(src_id)
-            dst = building_map.get(dst_id)
+            wf_type, src_type, dst_type, priority, risk = template
+            src = type_map.get(src_type)
+            dst = type_map.get(dst_type)
 
             if not src or not dst:
                 continue
@@ -222,7 +231,7 @@ class WorkflowEngine:
             elif wf_type == WorkflowType.comm_packet and _is_usable(src):
                 weight = 2.0
             elif wf_type == WorkflowType.staffing_request:
-                hospital = building_map.get("hospital")
+                hospital = type_map.get("hospital")
                 if hospital and hospital.queueDepth > 15:
                     weight = 4.0
                 else:
@@ -235,13 +244,13 @@ class WorkflowEngine:
                 )
                 weight = 1.0 + degraded_count * 0.8
             elif wf_type == WorkflowType.escalation:
-                cloud = building_map.get("cloud_datacenter")
+                cloud = type_map.get("cloud_datacenter")
                 if cloud and cloud.health < 70:
                     weight = 5.0
                 else:
                     weight = 0.3
             elif wf_type == WorkflowType.failover_cmd:
-                cloud = building_map.get("cloud_datacenter")
+                cloud = type_map.get("cloud_datacenter")
                 if cloud and cloud.health < 50:
                     weight = 6.0
                 else:
@@ -270,15 +279,19 @@ class WorkflowEngine:
                 selected = template
                 break
 
-        wf_type, src_id, dst_id, priority, base_risk = selected
+        wf_type, src_type, dst_type, priority, base_risk = selected
 
-        # Adjust risk based on building health
-        src = building_map.get(src_id)
-        dst = building_map.get(dst_id)
+        # Adjust risk based on building health (resolve types -> actual scenario buildings)
+        src = type_map.get(src_type)
+        dst = type_map.get(dst_type)
         risk_modifier = 1.0
         if src and src.health < 70:
             risk_modifier += 0.3
+        if src and src.health < 30:
+            risk_modifier += 0.3  # severe source degradation sharply raises risk
         if dst and dst.health < 70:
+            risk_modifier += 0.2
+        if dst and dst.health < 30:
             risk_modifier += 0.2
 
         actual_risk = min(1.0, base_risk * risk_modifier)
@@ -286,8 +299,8 @@ class WorkflowEngine:
         return Workflow(
             id=f"wf-{uuid.uuid4().hex[:8]}",
             type=wf_type,
-            sourceId=src_id,
-            destId=dst_id,
+            sourceId=src.id if src else src_type,
+            destId=dst.id if dst else dst_type,
             priority=priority,
             status=WorkflowStatus.flowing,
             automationEligible=True,

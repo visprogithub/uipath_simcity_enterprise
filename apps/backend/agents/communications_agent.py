@@ -37,7 +37,7 @@ class CommunicationsAgent(BaseAgent):
         tick = engine.tick_count
         acted = False
 
-        comms_hub = self.find_building(buildings, "comms_hub")
+        comms_hub = self.find_building_by_type(buildings, "comms_hub")
 
         # ─── Alert deduplication ──────────────────────────────────────────
         self._deduplicate_alerts(engine, tick)

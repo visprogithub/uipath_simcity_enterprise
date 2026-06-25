@@ -30,11 +30,12 @@ class OperationsCoordinator(BaseAgent):
         buildings = engine.buildings
         workflows = engine.workflow_engine.workflows
 
-        hospital = self.find_building(buildings, "hospital")
-        pharmacy = self.find_building(buildings, "pharmacy")
-        cloud = self.find_building(buildings, "cloud_datacenter")
-        orch = self.find_building(buildings, "orchestration_center")
-        backup = self.find_building(buildings, "backup_infra")
+        # Resolve by TYPE (consistent across every scenario, incl. custom), not by id.
+        hospital = self.find_building_by_type(buildings, "hospital")
+        pharmacy = self.find_building_by_type(buildings, "pharmacy")
+        cloud = self.find_building_by_type(buildings, "cloud_datacenter")
+        orch = self.find_building_by_type(buildings, "orchestration_center")
+        backup = self.find_building_by_type(buildings, "backup_infra")
 
         acted = False
 
@@ -74,7 +75,7 @@ class OperationsCoordinator(BaseAgent):
                 AlertSeverity.warning,
                 f"Hospital queue depth critical: {hospital.queueDepth} pending workflows. "
                 f"Additional staffing recommended.",
-                building_id="hospital",
+                building_id=hospital.id,
             )
             self.record_action(f"Alerted: Hospital queue depth at {hospital.queueDepth}")
             acted = True
@@ -93,7 +94,7 @@ class OperationsCoordinator(BaseAgent):
             # Reroute pharmacy workflows through backup
             pharmacy_blocked = [
                 w for w in workflows
-                if (w.sourceId == "pharmacy" or w.destId == "pharmacy")
+                if (w.sourceId == pharmacy.id or w.destId == pharmacy.id)
                 and w.status == WorkflowStatus.blocked
             ]
             for wf in pharmacy_blocked[:1]:

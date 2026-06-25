@@ -31,10 +31,11 @@ class IncidentResponseAgent(BaseAgent):
         buildings = engine.buildings
         tick = engine.tick_count
 
-        cloud = self.find_building(buildings, "cloud_datacenter")
-        hospital = self.find_building(buildings, "hospital")
-        pharmacy = self.find_building(buildings, "pharmacy")
-        backup = self.find_building(buildings, "backup_infra")
+        # Resolve by TYPE (consistent across every scenario, incl. custom), not by id.
+        cloud = self.find_building_by_type(buildings, "cloud_datacenter")
+        hospital = self.find_building_by_type(buildings, "hospital")
+        pharmacy = self.find_building_by_type(buildings, "pharmacy")
+        backup = self.find_building_by_type(buildings, "backup_infra")
 
         acted = False
 
@@ -47,7 +48,7 @@ class IncidentResponseAgent(BaseAgent):
                 AlertSeverity.critical,
                 f"{self.model.name}: {cloud.name} health critical at {cloud.health:.0f}%. "
                 f"Cascade failure risk elevated. Immediate intervention required.",
-                building_id="cloud_datacenter",
+                building_id=cloud.id,
             )
             self.record_action(
                 f"Detected {cloud.name} health drop to {cloud.health:.0f}%"
@@ -59,7 +60,7 @@ class IncidentResponseAgent(BaseAgent):
                 job = await engine.uipath_client.start_job(
                     "Incident_Escalation",
                     {
-                        "buildingId": "cloud_datacenter",
+                        "buildingId": cloud.id,
                         "health": cloud.health,
                         "severity": "critical",
                         "tick": tick,

@@ -472,21 +472,28 @@ class SimulationEngine:
 
     def _handle_activate_failover(self, action: ActivateFailoverAction) -> Dict[str, Any]:
         b = next((b for b in self.buildings if b.id == action.targetBuildingId), None)
-        backup = next((b for b in self.buildings if b.id == "backup_infra"), None)
+        # The backup building is identified by TYPE (every scenario has one "backup_infra"
+        # slot), not by a fixed id — the id is scenario-specific (e.g. disaster_recovery_site).
+        backup = next((bld for bld in self.buildings if bld.type == "backup_infra"), None)
 
         if not b:
             return {"success": False, "error": f"Building not found: {action.targetBuildingId}"}
         if not backup:
-            return {"success": False, "error": "Backup infrastructure not found"}
+            return {"success": False, "error": "No backup infrastructure exists in this scenario"}
 
-        # Activate failover: restore target building partially, drain backup capacity
-        b.health = max(b.health, 40.0)
-        b.throughput = max(b.throughput, 50.0)
-        b.clamp()
-
+        # Activate failover: the backup spins up and visibly carries load, while the
+        # failed building recovers as traffic reroutes through the backup.
         self.resource_manager.activate_failover()
-        backup.throughput = max(0.0, backup.throughput - 20.0)
+
+        # Backup comes online and takes over — light it up "in the mix".
+        backup.health = min(100.0, max(backup.health, 85.0))
+        backup.throughput = min(100.0, max(backup.throughput, 80.0))
         backup.clamp()
+
+        # Target building recovers because the backup is now serving its traffic.
+        b.health = max(b.health, 60.0)
+        b.throughput = max(b.throughput, 65.0)
+        b.clamp()
 
         self.emit_event(
             SimulationEventType.failover_activated,
@@ -578,6 +585,8 @@ class SimulationEngine:
             activeJobs=list(self.uipath_client._active_jobs.values()),
             pendingApprovals=list(self.uipath_client._pending_approvals.values()),
             lastSync=time.time(),
+            orchestrationMode=self.uipath_client.orchestration_mode,
+            maestroCaseProcess=self.uipath_client.maestro_case_process,
         )
 
         return SimulationState(

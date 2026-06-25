@@ -87,6 +87,10 @@ class UiPathStatus(BaseModel):
     activeJobs: List[UiPathJob] = Field(default_factory=list)
     pendingApprovals: List[UiPathApproval] = Field(default_factory=list)
     lastSync: float = 0.0
+    # "direct" = agents fire individual Orchestrator jobs; "maestro" = routed through
+    # the published Maestro Case instance.
+    orchestrationMode: str = "direct"
+    maestroCaseProcess: str = ""
 
 
 class SimulationState(BaseModel):

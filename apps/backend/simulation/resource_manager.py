@@ -70,7 +70,7 @@ class ResourceManager:
         self._pending_approvals = len(approval_wf)
 
     def _update_recovery_capacity(self, buildings: List[Building]) -> None:
-        backup = next((b for b in buildings if b.id == "backup_infra"), None)
+        backup = next((b for b in buildings if b.type == "backup_infra"), None)
 
         if self._failover_active:
             # Failover drains recovery capacity

@@ -208,12 +208,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         throw new Error('One or more report endpoints returned an error');
       }
 
-      const [afterActionReport, runbook, calibration, processTemplates] = await Promise.all([
+      const [afterActionReport, runbook, calibration, ptJson] = await Promise.all([
         aarRes.json(),
         rbRes.json(),
         calRes.json(),
         ptRes.json(),
       ]);
+
+      // Backend returns { processes: { name: template, ... } } with inputArguments/outputArguments;
+      // the UI expects a ProcessTemplate[] with inputArgs/outputArgs. Normalize here.
+      const processTemplates = Object.values((ptJson?.processes ?? {}) as Record<string, any>)
+        .filter((t) => t && !t.error)
+        .map((t: any) => ({
+          ...t,
+          inputArgs: t.inputArguments ?? t.inputArgs ?? [],
+          outputArgs: t.outputArguments ?? t.outputArgs ?? [],
+        }));
 
       set({ afterActionReport, runbook, calibration, processTemplates, reportsLoading: false });
     } catch (err) {
@@ -254,7 +264,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = await api('/api/approvals/pending');
       if (!res.ok) throw new Error('Failed to fetch approvals');
       const data = await res.json();
-      const approvals = Array.isArray(data) ? data : (data.approvals ?? []);
+      // Backend returns { items: [...], count }. Tolerate array or legacy shapes too.
+      const approvals = Array.isArray(data) ? data : (data.items ?? data.approvals ?? []);
       set({ pendingApprovals: approvals, approvalCount: approvals.length });
     } catch (err) {
       console.error('[store] fetchApprovals failed:', err);
