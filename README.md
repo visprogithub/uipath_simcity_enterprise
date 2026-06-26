@@ -49,6 +49,30 @@ Default is set by `UIPATH_ORCHESTRATION_MODE` (`direct` | `maestro`) and can be 
 
 ---
 
+## Human-in-the-loop approvals
+
+When **VERITAS** (the compliance agent) sees a compliance-sensitive workflow during a crisis, it **holds it for human approval** instead of letting it run. Pending approvals surface in the **Human Approvals** modal (top bar) and the **UiPath** sidebar panel; both Approve/Reject buttons call the real `/api/approvals/{id}/approve|reject` endpoints. In **Maestro Case** mode the same gate is also delivered to **UiPath Action Center**.
+
+**What gets gated:** any workflow typed `approval_request` (compliance-sensitive by definition), or any workflow whose risk exceeds `0.7`.
+
+**How the queue stays manageable** (so you're not click-spammed):
+
+- **Dedupe** — at most one pending approval per workflow.
+- **Queue cap** — at most **5** pending VERITAS approvals at once; new ones wait until some are resolved.
+- **Auto-expire** — approvals past their 5-minute SLA are dropped automatically.
+- **Decided = done** — once you approve or reject a workflow, it is **never re-gated**.
+- **Cooldown** — after *any* human decision, VERITAS pauses creating new approvals for `UIPATH_APPROVAL_COOLDOWN_SECONDS` (default **45s**), so clearing the queue actually sticks instead of instantly refilling. Once the cooldown elapses, an ongoing crisis may surface a few new approvals (ongoing crisis = ongoing oversight).
+
+The Human Approvals modal also shows the **3 most-recent unacknowledged critical alerts** for visibility; the full stream lives in the Alert Feed.
+
+---
+
+## Failure behavior — no silent fallbacks
+
+Both orchestration modes are **fail-forward**: if UiPath is unconfigured, a release isn't published, auth fails, or a job faults, the UI shows a **Faulted job with the real reason** and the API returns a true `502/503` — it never fakes a successful run. Failed player actions (e.g. activating failover with no backup building in the scenario) surface as a warning **alert** rather than silently doing nothing. You can always tell whether automation actually ran.
+
+---
+
 ## Architecture
 
 ```
@@ -116,6 +140,7 @@ Run individually with `npm run dev:backend` / `npm run dev:frontend`.
 | `UIPATH_ORCHESTRATION_MODE` | no | `direct` (default) or `maestro` |
 | `UIPATH_MAESTRO_CASE_PROCESS` | no | Maestro Case release name (default `MaestroCity_PipelineTest`) |
 | `UIPATH_MAESTRO_COOLDOWN_SECONDS` | no | Dedupe window for Maestro Case starts (default `25`) |
+| `UIPATH_APPROVAL_COOLDOWN_SECONDS` | no | After a human approve/reject, seconds VERITAS waits before creating new approvals (default `45`) |
 
 If credentials are absent, the app runs but UiPath calls report as unavailable in the UI (no faked success).
 
