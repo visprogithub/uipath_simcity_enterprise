@@ -61,7 +61,10 @@ class ComplianceAgent(BaseAgent):
                     a.workflowId == wf.id
                     for a in engine.uipath_client._pending_approvals.values()
                 )
-                if not already_pending and (tick - self._last_approval_tick) >= 5:
+                # Hard cap the pending queue so a long crisis can't flood the human with
+                # approvals — once the queue is full, new ones wait until some are resolved.
+                queue_full = len(engine.uipath_client._pending_approvals) >= 5
+                if not already_pending and not queue_full and (tick - self._last_approval_tick) >= 5:
                     self._last_approval_tick = tick
                     approval = UiPathApproval(
                         id=f"appr-{uuid.uuid4().hex[:8]}",

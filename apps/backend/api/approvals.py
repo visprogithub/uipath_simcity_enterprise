@@ -98,12 +98,13 @@ async def get_pending_approvals() -> Dict[str, Any]:
         for approval in engine.uipath_client._pending_approvals.values()
     ]
 
-    # Critical unacknowledged alerts as acknowledgment items
-    critical_alert_items = [
-        _serialize_critical_alert(alert)
-        for alert in engine.alerts
-        if not alert.acknowledged and alert.severity == AlertSeverity.critical
+    # Critical unacknowledged alerts surface here too, but only the few most-recent —
+    # the full list lives in the Alert Feed; flooding the approvals modal helps no one.
+    critical_alerts = [
+        a for a in engine.alerts
+        if not a.acknowledged and a.severity == AlertSeverity.critical
     ]
+    critical_alert_items = [_serialize_critical_alert(a) for a in critical_alerts[-3:]]
 
     all_items = uipath_items + critical_alert_items
 
