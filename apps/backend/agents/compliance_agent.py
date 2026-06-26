@@ -37,11 +37,21 @@ class ComplianceAgent(BaseAgent):
         # Gate (a) anything genuinely high-risk, OR (b) any approval_request workflow —
         # those are compliance-sensitive by definition, so they should reliably require a
         # human, not depend on the risk score landing in a narrow band.
+        resolved = engine.uipath_client._resolved_workflows
         high_risk_wfs = [
             w for w in workflows
             if (w.risk > 0.7 or w.type == WorkflowType.approval_request)
             and w.status not in (WorkflowStatus.failed, WorkflowStatus.blocked)
+            and w.id not in resolved  # a human already decided this one — never re-gate
         ]
+
+        # After any human approve/reject, back off creating new approvals for a cooldown
+        # so the queue stays cleared instead of instantly refilling (no click-treadmill).
+        import time as _t
+        human_cooldown_active = (
+            _t.time() - engine.uipath_client._last_human_decision
+            < engine.uipath_client._approval_cooldown
+        )
 
         for wf in high_risk_wfs[:2]:  # handle up to 2 per tick
             if not self.has_action_budget():
@@ -64,7 +74,7 @@ class ComplianceAgent(BaseAgent):
                 # Hard cap the pending queue so a long crisis can't flood the human with
                 # approvals — once the queue is full, new ones wait until some are resolved.
                 queue_full = len(engine.uipath_client._pending_approvals) >= 5
-                if not already_pending and not queue_full and (tick - self._last_approval_tick) >= 5:
+                if not already_pending and not queue_full and not human_cooldown_active and (tick - self._last_approval_tick) >= 5:
                     self._last_approval_tick = tick
                     approval = UiPathApproval(
                         id=f"appr-{uuid.uuid4().hex[:8]}",

@@ -62,6 +62,14 @@ class UiPathClient:
         # Dedupe window: one Maestro Case instance per burst of agent actions.
         self._maestro_cooldown: float = float(os.getenv("UIPATH_MAESTRO_COOLDOWN_SECONDS", "25"))
 
+        # Human-in-the-loop approval state:
+        #  - workflows a human has already decided on never re-gate (no treadmill)
+        #  - after any human decision, VERITAS backs off creating new approvals so the
+        #    queue actually stays cleared instead of instantly refilling.
+        self._resolved_workflows: set = set()
+        self._last_human_decision: float = 0.0
+        self._approval_cooldown: float = float(os.getenv("UIPATH_APPROVAL_COOLDOWN_SECONDS", "45"))
+
         # Resolve agent process names from env vars (allow override per-agent)
         self._agent_processes: Dict[str, str] = {
             agent_id: os.getenv(

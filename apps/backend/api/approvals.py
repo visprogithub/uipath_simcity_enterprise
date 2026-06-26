@@ -135,8 +135,12 @@ async def approve_item(approval_id: str, body: ApproveRequest) -> Dict[str, Any]
     # Check UiPath approvals first
     approval = _get_approval_item(approval_id)
     if approval:
-        # Remove from pending queue
+        # Remove from pending queue + record the human decision so this workflow never
+        # re-gates and VERITAS backs off creating new approvals for a cooldown.
         del engine.uipath_client._pending_approvals[approval_id]
+        engine.uipath_client._last_human_decision = time.time()
+        if approval.workflowId:
+            engine.uipath_client._resolved_workflows.add(approval.workflowId)
 
         # Emit approval_granted event
         engine.emit_event(
@@ -226,8 +230,12 @@ async def reject_item(approval_id: str, body: RejectRequest) -> Dict[str, Any]:
     # Check UiPath approvals first
     approval = _get_approval_item(approval_id)
     if approval:
-        # Remove from pending queue
+        # Remove from pending queue + record the human decision (never re-gate this
+        # workflow; back off creating new approvals for a cooldown).
         del engine.uipath_client._pending_approvals[approval_id]
+        engine.uipath_client._last_human_decision = time.time()
+        if approval.workflowId:
+            engine.uipath_client._resolved_workflows.add(approval.workflowId)
 
         # Emit escalation event
         engine.emit_event(
