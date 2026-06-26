@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from models.state import AlertSeverity, SimulationEventType, UiPathApproval
+from models.workflow import WorkflowStatus
 from simulation.engine import engine
 
 logger = logging.getLogger(__name__)
@@ -56,24 +57,6 @@ def _serialize_approval(approval: UiPathApproval) -> Dict[str, Any]:
     }
 
 
-def _serialize_critical_alert(alert) -> Dict[str, Any]:
-    """Convert a critical alert to an approval-like item for human acknowledgment."""
-    timeout_seconds = 3 * 60  # 3-minute acknowledgment window for critical alerts
-    return {
-        "id": alert.id,
-        "title": f"Critical Alert: {alert.message[:80]}",
-        "description": alert.message,
-        "severity": alert.severity.value,
-        "requestedBy": "SENTINEL (Incident Response)",
-        "createdAt": alert.timestamp,
-        "timeoutAt": alert.timestamp + timeout_seconds,
-        "isOverdue": time.time() > (alert.timestamp + timeout_seconds),
-        "buildingId": alert.buildingId,
-        "agentId": alert.agentId,
-        "source": "critical_alert",
-    }
-
-
 # ─── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/pending")
@@ -92,32 +75,35 @@ async def get_pending_approvals() -> Dict[str, Any]:
     for aid in expired:
         del engine.uipath_client._pending_approvals[aid]
 
-    # UiPath Action Center approvals
+    # UiPath Action Center approvals — the ONLY thing that belongs in this queue.
+    # This modal is a human-in-the-loop *decision* surface, not an alert inbox.
+    # Critical alerts are deliberately NOT merged in here: they have no per-workflow
+    # dedupe / cooldown / queue cap, and the engine keeps a rolling backlog of up to
+    # MAX_ALERTS unacknowledged ones — so surfacing them created an un-clearable
+    # treadmill (clear 3, 3 more surface) that was especially brutal in "direct"
+    # orchestration mode, where every agent fires its own job and faults pile up fast.
+    # Critical alerts live in the Alert Feed; we only report their COUNT here so the
+    # UI can badge "N in Alert Feed →" without putting them in the clickable list.
     uipath_items = [
         _serialize_approval(approval)
         for approval in engine.uipath_client._pending_approvals.values()
     ]
 
-    # Critical unacknowledged alerts surface here too, but only the few most-recent —
-    # the full list lives in the Alert Feed; flooding the approvals modal helps no one.
-    critical_alerts = [
-        a for a in engine.alerts
+    unacked_critical_count = sum(
+        1 for a in engine.alerts
         if not a.acknowledged and a.severity == AlertSeverity.critical
-    ]
-    critical_alert_items = [_serialize_critical_alert(a) for a in critical_alerts[-3:]]
-
-    all_items = uipath_items + critical_alert_items
+    )
 
     # Sort by createdAt descending (newest first), then by overdue flag
-    all_items.sort(key=lambda x: (-int(x["isOverdue"]), -x["createdAt"]))
+    uipath_items.sort(key=lambda x: (-int(x["isOverdue"]), -x["createdAt"]))
 
-    overdue_count = sum(1 for item in all_items if item["isOverdue"])
+    overdue_count = sum(1 for item in uipath_items if item["isOverdue"])
 
     return {
-        "items": all_items,
-        "count": len(all_items),
+        "items": uipath_items,
+        "count": len(uipath_items),
         "uipathApprovalCount": len(uipath_items),
-        "criticalAlertCount": len(critical_alert_items),
+        "criticalAlertCount": unacked_critical_count,
         "overdueCount": overdue_count,
         "phase": engine.phase.value,
         "timestamp": time.time(),
@@ -141,6 +127,13 @@ async def approve_item(approval_id: str, body: ApproveRequest) -> Dict[str, Any]
         engine.uipath_client._last_human_decision = time.time()
         if approval.workflowId:
             engine.uipath_client._resolved_workflows.add(approval.workflowId)
+            # Resume any workflow that was genuinely paused awaiting this decision.
+            wf = next(
+                (w for w in engine.workflow_engine.workflows if w.id == approval.workflowId),
+                None,
+            )
+            if wf:
+                wf.awaitingApproval = False
 
         # Emit approval_granted event
         engine.emit_event(
@@ -236,6 +229,15 @@ async def reject_item(approval_id: str, body: RejectRequest) -> Dict[str, Any]:
         engine.uipath_client._last_human_decision = time.time()
         if approval.workflowId:
             engine.uipath_client._resolved_workflows.add(approval.workflowId)
+            # Rejecting a gated workflow escalates it: lift the pause and mark it
+            # escalated rather than leaving it silently blocked forever.
+            wf = next(
+                (w for w in engine.workflow_engine.workflows if w.id == approval.workflowId),
+                None,
+            )
+            if wf:
+                wf.awaitingApproval = False
+                wf.status = WorkflowStatus.escalated
 
         # Emit escalation event
         engine.emit_event(

@@ -58,7 +58,7 @@ class ExecutiveStrategyAgent(BaseAgent):
             incident_agent = next((a for a in agents if a.id == "incident_resp"), None)
 
             if incident_agent:
-                if self.can_act_autonomously(3) and can_adjust:
+                if False and self.can_act_autonomously(3) and can_adjust:
                     # Auto-increase incident response autonomy
                     old_level = incident_agent.autonomyLevel
                     incident_agent.autonomyLevel = min(4, incident_agent.autonomyLevel + 1)
@@ -102,7 +102,7 @@ class ExecutiveStrategyAgent(BaseAgent):
         ):
             self._last_staffing_alert_tick = tick
 
-            if self.can_act_autonomously(3):
+            if False and self.can_act_autonomously(3):
                 # Auto-trigger Emergency Staffing
                 job = await engine.uipath_client.start_job(
                     "Emergency_Staffing",

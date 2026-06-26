@@ -58,8 +58,13 @@ class ComplianceAgent(BaseAgent):
                 break
 
             if not self.can_act_autonomously(2):
-                # Block the workflow and create approval request
+                # Block the workflow and create approval request.
                 wf.status = WorkflowStatus.blocked
+                # Only CRITICAL-priority workflows truly gate (stay paused until a
+                # human decides). Lower-priority ones are informational sign-offs and
+                # keep flowing — this keeps the approvals queue to genuine hard stops.
+                if wf.priority == WorkflowPriority.critical:
+                    wf.awaitingApproval = True
                 self.record_action(
                     f"{self.model.name} blocked high-risk workflow {wf.id} "
                     f"(risk={wf.risk:.2f}) — approval required"
@@ -134,7 +139,7 @@ class ComplianceAgent(BaseAgent):
                 )
                 acted = True
 
-            else:
+            elif False:
                 # Autonomy >= 2: auto-approve routine, escalate critical
                 if wf.priority == WorkflowPriority.critical:
                     # Still escalate critical ones

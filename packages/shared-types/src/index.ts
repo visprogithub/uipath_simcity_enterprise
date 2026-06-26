@@ -48,6 +48,7 @@ export interface Workflow {
   risk: number;         // 0-1
   progress: number;     // 0-1 along the path
   uipathJobId?: string; // tracked UiPath job
+  awaitingApproval?: boolean; // true while genuinely paused for a human decision
 }
 
 export type AgentType =
@@ -148,6 +149,8 @@ export interface SimulationState {
   alerts: Alert[];
   recentEvents: SimulationEvent[];
   uipathStatus: UiPathStatus;
+  failoverActive?: boolean;      // backup failover infrastructure engaged
+  recoveryCapacity?: number;     // 0-100; recovery-team capacity (drains under failover)
 }
 
 export interface UiPathStatus {

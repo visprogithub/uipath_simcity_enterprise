@@ -127,8 +127,26 @@ export default function FailoverControls() {
       </div>
 
       {/* Activate Failover */}
-      <div className="bg-bg-card border border-accent-warning/20 rounded-lg p-2.5 space-y-2">
-        <div className="text-xs font-semibold text-accent-warning">Activate Failover</div>
+      <div className={clsx(
+        'bg-bg-card border rounded-lg p-2.5 space-y-2 transition-colors',
+        simState?.failoverActive ? 'border-accent-success/50' : 'border-accent-warning/20'
+      )}>
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-semibold text-accent-warning">Activate Failover</div>
+          {simState?.failoverActive ? (
+            <div className="flex items-center gap-1.5 text-xs font-bold text-accent-success">
+              <span className="w-2 h-2 rounded-full bg-accent-success animate-pulse" />
+              ENGAGED
+            </div>
+          ) : (
+            <span className="text-xs text-text-dim">standby</span>
+          )}
+        </div>
+        {simState?.failoverActive && (
+          <div className="text-[10px] text-text-dim leading-snug">
+            Backup carrying load · recovery capacity {Math.round(simState.recoveryCapacity ?? 0)}%
+          </div>
+        )}
         <select
           value={failoverBuilding}
           onChange={(e) => setFailoverBuilding(e.target.value)}

@@ -2,7 +2,7 @@
 Incident Response Agent (SENTINEL):
 - Detects outage patterns, cascade starts, queue overflow
 - At autonomy >= 2: auto-triggers UiPath escalation workflows
-- At autonomy >= 3: immediately activates backup_infra failover
+- At autonomy >= 3: recommends failover for operator activation
 """
 import logging
 from typing import TYPE_CHECKING
@@ -82,24 +82,21 @@ class IncidentResponseAgent(BaseAgent):
                     )
                 engine.trust_system.on_agent_action(self.model, True)
 
-            # Level >= 3: auto-activate failover
+            # Level >= 3: recommend failover without changing backup capacity or reporting activation.
             if self.can_act_autonomously(3) and backup and self.has_action_budget():
-                old_health = backup.health
-                backup.throughput = min(100.0, backup.throughput + 30.0)
-                backup.clamp()
-                engine.resource_manager.activate_failover()
                 self.emit_event(
                     engine,
-                    SimulationEventType.failover_activated,
+                    SimulationEventType.agent_action,
                     {
                         "agentId": self.model.id,
-                        "targetBuildingId": "backup_infra",
+                        "action": "recommend_failover",
+                        "targetBuildingId": backup.id,
                         "reason": "cloud_health_critical",
                         "cloudHealth": cloud.health,
                     },
                 )
                 self.record_action(
-                    f"AUTO-ACTIVATED failover infrastructure (cloud: {cloud.health:.0f}%)"
+                    f"Failover RECOMMENDED (cloud: {cloud.health:.0f}%) — operator action required"
                 )
                 engine.trust_system.on_agent_action(self.model, True)
 

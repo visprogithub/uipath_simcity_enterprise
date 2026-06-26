@@ -30,7 +30,8 @@ def _find_building(buildings: List[Building], bid: str) -> Optional[Building]:
 def _throughput_factor(b: Optional[Building]) -> float:
     if b is None:
         return 0.1
-    return max(0.05, b.throughput / 100.0)
+    staffing_factor = max(0.05, b.staffingLevel / 100.0)
+    return max(0.02, (b.throughput / 100.0) * staffing_factor)
 
 
 def _is_usable(b: Optional[Building]) -> bool:
@@ -139,10 +140,20 @@ class WorkflowEngine:
         building_map: Dict[str, Building],
     ) -> WorkflowStatus:
         """Determine what status a workflow should have based on building states."""
+        # A workflow held for human approval stays blocked until the human decides —
+        # the per-tick health recompute must not silently resume it.
+        if wf.awaitingApproval:
+            return WorkflowStatus.blocked
+
         src_down = src is None or src.status in (BuildingStatus.offline,)
         dst_down = dst is None or dst.status in (BuildingStatus.offline,)
         src_critical = src is not None and src.status == BuildingStatus.critical
         dst_critical = dst is not None and dst.status == BuildingStatus.critical
+        src_understaffed = src is not None and src.staffingLevel < 25
+        dst_understaffed = dst is not None and dst.staffingLevel < 25
+
+        if src_understaffed or dst_understaffed:
+            return WorkflowStatus.blocked if (src_down or dst_down) else WorkflowStatus.queued
 
         if src_down or dst_down:
             # Try to reroute through orchestration_center

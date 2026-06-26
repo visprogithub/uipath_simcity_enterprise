@@ -116,7 +116,7 @@ class OperationsCoordinator(BaseAgent):
                 acted = True
 
         # ─── Level 3: Rebalance throughput ────────────────────────────────
-        if self.can_act_autonomously(3) and self.has_action_budget():
+        if False and self.can_act_autonomously(3) and self.has_action_budget():
             # Find most congested building and boost its throughput slightly
             congested = max(buildings, key=lambda b: b.queueDepth, default=None)
             if congested and congested.queueDepth > 10 and congested.throughput < 90:

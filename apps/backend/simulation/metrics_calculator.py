@@ -64,9 +64,11 @@ class MetricsCalculator:
         weighted_health = 0.0
 
         for b in buildings:
-            weight = _BUILDING_WEIGHTS.get(b.id, 1.0)
+            weight = _BUILDING_WEIGHTS.get(b.type.value, 1.0)
+            staffing_factor = 0.45 + 0.55 * (b.staffingLevel / 100.0)
+            effective_health = b.health * staffing_factor
             total_weight += weight
-            weighted_health += b.health * weight
+            weighted_health += effective_health * weight
 
         base_stability = weighted_health / total_weight
 
@@ -89,6 +91,10 @@ class MetricsCalculator:
         Human strain from resource manager, amplified by total queue depth.
         """
         base_strain = resource_manager.humanStrain
+
+        understaffed = sum(1 for b in buildings if b.staffingLevel < 25)
+        if understaffed:
+            base_strain = min(100.0, base_strain + understaffed * 2.0)
 
         # Additional amplification from very high queues
         total_queue = sum(b.queueDepth for b in buildings)
@@ -136,9 +142,9 @@ class MetricsCalculator:
         # Critical building health contribution (50% of score)
         building_score = 0.0
         if hospital:
-            building_score += hospital.health * 0.5
+            building_score += hospital.health * (0.45 + 0.55 * (hospital.staffingLevel / 100.0)) * 0.5
         if pharmacy:
-            building_score += pharmacy.health * 0.5
+            building_score += pharmacy.health * (0.45 + 0.55 * (pharmacy.staffingLevel / 100.0)) * 0.5
 
         # Critical workflow flow rate (50% of score)
         critical_ids = {b.id for b in (hospital, pharmacy) if b}

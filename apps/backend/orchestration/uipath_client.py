@@ -283,6 +283,16 @@ class UiPathClient:
         logger.info(f"Orchestration mode set to '{mode}'")
         return mode
 
+    def reset_simulation_run_state(self) -> None:
+        """Clear run-scoped UiPath state when a scenario is reset or switched."""
+        self._pending_approvals.clear()
+        self._resolved_workflows.clear()
+        self._last_human_decision = 0.0
+        self._last_maestro_start = 0.0
+        self._active_jobs.clear()
+        self._job_callbacks.clear()
+        logger.info("Cleared UiPath run-scoped jobs, approvals, and approval memory")
+
     async def _start_maestro_case(
         self, triggering_process: str, input_args: dict, folder_id: Optional[str] = None
     ) -> Optional[UiPathJob]:

@@ -20,30 +20,45 @@ function StuckWorkflowsBadge() {
 
   if (!simState) return null;
 
-  const stuckWorkflows = simState.workflows.filter(
+  const stuck = simState.workflows.filter(
     (w) => w.status === 'queued' || w.status === 'blocked'
   );
+  if (stuck.length === 0) return null;
 
-  if (stuckWorkflows.length === 0) return null;
+  // Two very different reasons a workflow is stuck — and they need different
+  // actions. Awaiting-approval ones are unblocked by a human decision (opens the
+  // Approvals modal); infrastructure-blocked ones are waiting on a building to
+  // recover and are cleared with Failover / Restore, NOT by opening Approvals.
+  const awaitingApproval = stuck.filter((w) => w.awaitingApproval);
+  const infraBlocked = stuck.filter((w) => !w.awaitingApproval);
 
-  function handleClick() {
+  function openApprovals() {
     fetchApprovals();
     setApprovalsOpen(true);
   }
 
   return (
-    <button
-      onClick={handleClick}
-      className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold animate-pulse"
-      style={{
-        background: 'rgba(239,68,68,0.18)',
-        border: '1px solid rgba(239,68,68,0.45)',
-        color: '#f87171',
-      }}
-    >
-      <span>&#9888;</span>
-      {stuckWorkflows.length} workflow{stuckWorkflows.length !== 1 ? 's' : ''} stuck
-    </button>
+    <div className="absolute top-2 left-2 z-10 flex items-center gap-2">
+      {awaitingApproval.length > 0 && (
+        <button
+          onClick={openApprovals}
+          title="These workflows are paused for a human decision — click to review approvals."
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold animate-pulse bg-accent-warning/15 border border-accent-warning/45 text-accent-warning hover:bg-accent-warning/25 transition-colors"
+        >
+          <span>&#9995;</span>
+          {awaitingApproval.length} awaiting approval
+        </button>
+      )}
+      {infraBlocked.length > 0 && (
+        <div
+          title="Waiting on infrastructure to recover — use Activate Failover or Restore Building to clear these."
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-accent-danger/15 border border-accent-danger/45 text-accent-danger cursor-default"
+        >
+          <span>&#9888;</span>
+          {infraBlocked.length} blocked &middot; infrastructure
+        </div>
+      )}
+    </div>
   );
 }
 

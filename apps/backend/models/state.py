@@ -106,3 +106,5 @@ class SimulationState(BaseModel):
     alerts: List[Alert]
     recentEvents: List[SimulationEvent]
     uipathStatus: UiPathStatus
+    failoverActive: bool = False        # is backup failover infrastructure engaged
+    recoveryCapacity: float = 100.0     # 0-100; recovery-team capacity (drains under failover)

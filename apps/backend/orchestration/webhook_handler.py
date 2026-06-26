@@ -151,14 +151,19 @@ class WebhookHandler:
             actions.append(f"Approval {action_id} resolved: {'approved' if approved else 'rejected'}")
 
         if approved:
-            # Unblock associated workflows
+            # Release only the workflow tied to this approval. Do not force it to
+            # flowing here; the workflow engine will recompute whether the route is
+            # actually usable on the next tick.
             workflow_id = payload.get("WorkflowId", "")
             if workflow_id:
-                from models.workflow import WorkflowStatus
-                engine.workflow_engine.set_workflow_status(
-                    workflow_id, WorkflowStatus.flowing
+                engine.uipath_client._resolved_workflows.add(workflow_id)
+                wf = next(
+                    (w for w in engine.workflow_engine.workflows if w.id == workflow_id),
+                    None,
                 )
-                actions.append(f"Unblocked workflow {workflow_id}")
+                if wf:
+                    wf.awaitingApproval = False
+                actions.append(f"Released approval gate for workflow {workflow_id}")
                 from models.state import SimulationEventType
                 engine.emit_event(
                     SimulationEventType.approval_granted,
@@ -195,7 +200,6 @@ class WebhookHandler:
             "Incident_Escalation": self._effect_incident_escalation_success,
             "Crisis_Response": self._effect_crisis_response_success,
             "Emergency_Staffing": self._effect_emergency_staffing_success,
-            "Approval_Chain": self._effect_approval_chain_success,
             "Trust_Recovery_Protocol": self._effect_trust_recovery_success,
             "Notification_Blast": lambda e: "Notifications delivered",
         }
@@ -215,31 +219,56 @@ class WebhookHandler:
         return f"Job {process_name} faulted — automation confidence reduced"
 
     def _effect_incident_escalation_success(self, engine: "SimulationEngine") -> str:
-        # Speed up cloud datacenter recovery
-        cloud = next((b for b in engine.buildings if b.id == "cloud_datacenter"), None)
-        if cloud and cloud.health < 100:
-            cloud.health = min(100.0, cloud.health + 8.0)
+        cloud = next((b for b in engine.buildings if b.type == "cloud_datacenter"), None)
+        if not cloud:
+            return "Incident escalation successful; no primary infrastructure target found"
+
+        # Escalation is diagnosis + command coordination. It must not resurrect a full
+        # outage by itself; actual repair starts after failover/staffing are engaged.
+        if not engine.resource_manager.failover_active:
+            cloud.throughput = min(100.0, cloud.throughput + 2.0)
             cloud.clamp()
+            return "Incident escalation successful; failover/staffing still required for repair"
+
+        high_auton = sum(1 for a in engine.agents if a.autonomyLevel >= 3)
+        coordination = max(0.0, (high_auton - 1) / max(1, len(engine.agents) - 1))
+        boost = 1.5 * (cloud.staffingLevel / 100.0) + 2.0 * coordination
+        cloud.health = min(100.0, cloud.health + boost)
+        cloud.clamp()
         return "Incident escalation successful — CloudCore recovery boosted"
 
     def _effect_crisis_response_success(self, engine: "SimulationEngine") -> str:
         # Boost all degraded buildings slightly
+        if not engine.resource_manager.failover_active:
+            engine.resource_manager.humanStrain = max(
+                0.0, engine.resource_manager.humanStrain - 2.0
+            )
+            return "Crisis response successful; cascade isolated, repair levers still required"
+
+        high_auton = sum(1 for a in engine.agents if a.autonomyLevel >= 3)
+        coordination = max(0.0, (high_auton - 1) / max(1, len(engine.agents) - 1))
+        repaired = 0
         for b in engine.buildings:
             if b.health < 60:
-                b.health = min(100.0, b.health + 5.0)
+                boost = 0.8 * (b.staffingLevel / 100.0) + 1.2 * coordination
+                b.health = min(100.0, b.health + boost)
                 b.clamp()
+                repaired += 1
+        return f"Crisis response successful; coordinated repair applied to {repaired} buildings"
         return "Crisis response successful — all buildings boosted"
 
     def _effect_emergency_staffing_success(self, engine: "SimulationEngine") -> str:
-        # Reduce human strain
+        # Reduce human strain modestly. Staffing automation is a supporting lever, not
+        # a full recovery lever.
         engine.resource_manager.humanStrain = max(
-            0.0, engine.resource_manager.humanStrain - 20.0
+            0.0, engine.resource_manager.humanStrain - 8.0
         )
-        # Boost staffing on hospital and pharmacy
-        for bid in ("hospital", "pharmacy"):
-            b = next((b for b in engine.buildings if b.id == bid), None)
+        # Boost staffing on the primary service buildings by TYPE so every scenario
+        # gets the same treatment regardless of scenario-specific building IDs.
+        for building_type in ("hospital", "pharmacy"):
+            b = next((b for b in engine.buildings if b.type == building_type), None)
             if b:
-                b.staffingLevel = min(100.0, b.staffingLevel + 15.0)
+                b.staffingLevel = min(90.0, b.staffingLevel + 8.0)
                 b.clamp()
         return "Emergency staffing deployed — strain reduced"
 

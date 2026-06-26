@@ -124,11 +124,21 @@ class DependencyGraph:
 
         return result
 
-    def propagate_failures(self, buildings: List[Building]) -> List[str]:
+    def propagate_failures(
+        self, buildings: List[Building], failover_active: bool = False,
+        coordination: float = 0.0,
+    ) -> List[str]:
         """
         For all buildings currently in a failing state (health < threshold),
         propagate health reductions to their dependents.
         Modifies buildings in place. Returns list of affected building IDs.
+
+        Cascade pressure is held back by PEOPLE, not infrastructure: staffing
+        absorbs some, and multi-agent coordination (agents at high autonomy working
+        the incident) absorbs more. Failover deliberately does NOT dampen here — its
+        job is to revive the dead hub (see recovery), not to shield dependents. So
+        failover alone revives the root but the rest of the grid still crumbles unless
+        staff and coordinated agents hold the line: recovery needs the combination.
         """
         self.build_graph(buildings)
         building_map: Dict[str, Building] = {b.id: b for b in buildings}
@@ -144,8 +154,16 @@ class DependencyGraph:
             for dep_id, reduction in propagation.items():
                 dep = building_map.get(dep_id)
                 if dep and dep != failing_b:
-                    # Apply a per-tick reduction (scaled down so it's gradual)
-                    tick_reduction = reduction * 0.03  # 3% of the theoretical max per tick
+                    # Per-tick reduction. Strong enough that an unaddressed hub
+                    # outage drags dependents below the propagation threshold and the
+                    # cascade snowballs (collapse is a real threat, not a slow drift).
+                    tick_reduction = reduction * 0.05
+                    # Support absorbs cascade pressure. Staffing contributes only a
+                    # little (it's maxed by default, so it must NOT neuter the cascade
+                    # on its own); multi-agent coordination matters only when several
+                    # agents are working the incident together.
+                    support = 0.20 * (dep.staffingLevel / 100.0) + 0.50 * coordination
+                    tick_reduction *= max(0.1, 1.0 - support)
                     dep.health = max(0.0, dep.health - tick_reduction)
                     dep.throughput = max(0.0, dep.throughput - tick_reduction * 0.5)
                     dep.clamp()

@@ -105,6 +105,7 @@ export interface GameStore {
   approvalsOpen: boolean;
   setApprovalsOpen: (v: boolean) => void;
   pendingApprovals: any[];
+  clearApprovals: () => void;
   fetchApprovals: () => Promise<void>;
   approvalCount: number;
 }
@@ -237,6 +238,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   resetScenario: async () => {
     try {
       await api('/api/scenario/reset', { method: 'POST' });
+      set({ pendingApprovals: [], approvalCount: 0 });
     } catch (err) {
       console.error('[store] resetScenario failed:', err);
     }
@@ -258,6 +260,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setCodeGenOpen: (v) => set({ codeGenOpen: v }),
 
   setApprovalsOpen: (v) => set({ approvalsOpen: v }),
+
+  clearApprovals: () => set({ pendingApprovals: [], approvalCount: 0 }),
 
   fetchApprovals: async () => {
     try {
@@ -315,7 +319,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!res.ok) throw new Error('Failed to select scenario');
       const scenarios = get().availableScenarios;
       const selected = scenarios.find((s) => s.id === id) ?? null;
-      set({ activeScenario: selected, scenarioSelected: true });
+      set({
+        activeScenario: selected,
+        scenarioSelected: true,
+        pendingApprovals: [],
+        approvalCount: 0,
+      });
       // Reset old simulation data
       await get().resetScenario();
     } catch (err) {

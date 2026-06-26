@@ -40,3 +40,8 @@ class Workflow(BaseModel):
     risk: float = Field(0.1, ge=0.0, le=1.0)
     progress: float = Field(0.0, ge=0.0, le=1.0)
     uipathJobId: Optional[str] = None
+    # True while a critical-priority workflow is genuinely paused awaiting a human
+    # decision. Survives the per-tick status recompute so the block is real (an
+    # approval that doesn't actually hold the workflow is just noise). Cleared on
+    # approve (resume) or reject (escalate/fail).
+    awaitingApproval: bool = False

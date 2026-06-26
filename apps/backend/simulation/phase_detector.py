@@ -52,6 +52,13 @@ class PhaseDetector:
             (hospital and hospital.status in (BuildingStatus.offline, BuildingStatus.critical)) or
             (pharmacy and pharmacy.status in (BuildingStatus.offline, BuildingStatus.critical))
         )
+        key_infra_degraded = (
+            cloud and cloud.status in (
+                BuildingStatus.degraded,
+                BuildingStatus.critical,
+                BuildingStatus.offline,
+            )
+        )
 
         cascade_active = offline_count >= 2 or (cloud and cloud.health < 30)
 
@@ -95,8 +102,10 @@ class PhaseDetector:
         # Degrading detection
         degrading = (
             (metrics.operationalStability < 70 or metrics.serviceAvailability < 70) or
+            offline_count >= 1 or
             degraded_count >= 2 or
             critical_count >= 1 or
+            key_infra_degraded or
             metrics.humanStrain > 60
         )
 

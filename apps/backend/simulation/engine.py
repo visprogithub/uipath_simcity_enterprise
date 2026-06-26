@@ -180,8 +180,16 @@ class SimulationEngine:
         """Execute one simulation tick."""
         self.tick_count += 1
 
-        # 1. Propagate dependency failures (cascade effects)
-        affected = self.dependency_graph.propagate_failures(self.buildings)
+        # 1. Propagate dependency failures (cascade effects). The cascade is held back
+        #    by PEOPLE — staffing + multi-agent coordination — so both feed in. (Failover
+        #    revives the dead hub via recovery, but does not shield dependents here.)
+        high_auton = sum(1 for a in self.agents if a.autonomyLevel >= 3)
+        # One high-autonomy agent contributes a real slice (~1/N), scaling up as more
+        # agents coordinate — a single agent helps but can't carry a recovery alone.
+        coordination = high_auton / max(1, len(self.agents))
+        affected = self.dependency_graph.propagate_failures(
+            self.buildings, self.resource_manager.failover_active, coordination
+        )
         if affected:
             self._generate_cascade_alerts(affected)
 
@@ -258,14 +266,62 @@ class SimulationEngine:
             )
 
     def _apply_health_recovery(self) -> None:
-        """Allow buildings to slowly recover health when not under cascade stress."""
+        """Recover building health each tick.
+
+        Recovery is the player's counter to cascade decay, so it must be a real,
+        tunable lever — not a token 0.15/tick that the cascade (~1.8/tick per dead
+        neighbour) trivially outpaces. Two things scale it:
+          • Staffing: a fully-staffed building heals far faster than a skeleton crew,
+            so the Staffing control actually moves the needle on collapse.
+          • Failover: active backup infrastructure accelerates recovery grid-wide,
+            so Activate Failover (player- or agent-triggered) visibly turns the tide.
+        The data center is no longer excluded — as the dependency hub, leaving it
+        unable to self-heal guaranteed an irreversible spiral.
+        """
+        failover = self.resource_manager.failover_active
+        # Coordination: recovery scales with how many agents are operating at HIGH
+        # autonomy (>=3). No single agent is a silver bullet — promoting one agent to
+        # level 3 contributes a slice, not a cure. A real recovery needs several agents
+        # coordinating AND staffing effort AND failover infrastructure stacked together.
+        high_auton = sum(1 for a in self.agents if a.autonomyLevel >= 3)
+        # One high-autonomy agent contributes a real slice (~1/N), scaling up as more
+        # agents coordinate — a single agent helps but can't carry a recovery alone.
+        coordination = high_auton / max(1, len(self.agents))
+        capacity_factor = self.resource_manager.recoveryCapacity / 100.0
+
         for b in self.buildings:
-            if b.health < 100 and b.health > 0:
-                # Faster recovery when backup is active and building isn't in cascade
-                if b.id != "cloud_datacenter":
-                    recovery_rate = 0.15 if b.health > 30 else 0.05
-                    b.health = min(100.0, b.health + recovery_rate)
-                    b.clamp()
+            # ── Understaffing degrades health (makes Staffing a real lever) ──────
+            # A building below half-staff cannot sustain operations and deteriorates.
+            # This applies at ANY health level, so dropping staffing has immediate,
+            # visible impact — buildings decline and eventually fail — while keeping
+            # staffing up holds the line. This upstream effect was missing entirely,
+            # which is why setting staffing to 0 previously did nothing.
+            if b.staffingLevel < 50.0:
+                understaff = (50.0 - b.staffingLevel) / 50.0   # 0..1
+                b.health = max(0.0, b.health - understaff * 1.5)  # up to -1.5/tick at 0 staff
+                b.clamp()
+
+            if b.health >= 100:
+                continue
+            # A CRASHED building (critical/offline, <40% — including a failing hub that
+            # receives no cascade decay and would otherwise self-heal) cannot be revived
+            # by people alone. Failover infrastructure (or an explicit Restore) must bring
+            # it back online; only then do staffing + coordination lift it. This is why no
+            # amount of agent autonomy alone resurrects a downed data center.
+            CRASH_THRESHOLD = 40.0
+            if b.health < CRASH_THRESHOLD and not failover:
+                continue
+            # Recovery is a SUM of partial levers — each meaningful, none sufficient
+            # alone. Beating a real multi-neighbour cascade (~1.5-3 health/tick of
+            # decay) requires stacking most of them: that's the intended realism.
+            rate = 0.06                                  # passive baseline
+            rate += 0.28 * (b.staffingLevel / 100.0)     # staffing effort (depletes under stress)
+            if failover:
+                rate += 0.20                             # failover infrastructure (one ingredient)
+            rate += 0.95 * coordination                  # multi-agent coordination
+            rate *= 0.45 + (0.55 * capacity_factor)      # exhausted recovery teams heal slower
+            b.health = min(100.0, b.health + rate)
+            b.clamp()
 
     async def _run_agent(self, agent: Agent) -> None:
         """Run decision logic for one agent."""
@@ -500,9 +556,13 @@ class SimulationEngine:
         backup.throughput = min(100.0, max(backup.throughput, 80.0))
         backup.clamp()
 
-        # Target building recovers because the backup is now serving its traffic.
-        b.health = max(b.health, 60.0)
-        b.throughput = max(b.throughput, 65.0)
+        # Target building is stabilized because backup is serving traffic, but this
+        # is not a full restore. The player still needs staffing and coordinated
+        # autonomy increases to climb from degraded/critical back to healthy.
+        target_floor = 34.0 + (backup.health * 0.10) + (b.staffingLevel * 0.05)
+        throughput_floor = 42.0 + (backup.throughput * 0.12) + (b.staffingLevel * 0.06)
+        b.health = max(b.health, min(52.0, target_floor))
+        b.throughput = max(b.throughput, min(60.0, throughput_floor))
         b.clamp()
 
         self.emit_event(
@@ -610,6 +670,8 @@ class SimulationEngine:
             alerts=list(self.alerts),
             recentEvents=list(self.events[-20:]),
             uipathStatus=uipath_status,
+            failoverActive=self.resource_manager.failover_active,
+            recoveryCapacity=self.resource_manager.recoveryCapacity,
         )
 
     # ─── Alert & Event Helpers ─────────────────────────────────────────────────
@@ -706,6 +768,7 @@ class SimulationEngine:
         self.phase = GamePhase.healthy
         self.alerts.clear()
         self.events.clear()
+        self.uipath_client.reset_simulation_run_state()
         self._init_agent_handlers()
         self.scenario_tracker.start_scenario()
         logger.info(f"Scenario reset — new scenario started (scenario={self.active_scenario_id})")
@@ -732,6 +795,7 @@ class SimulationEngine:
         self.phase = GamePhase.healthy
         self.alerts.clear()
         self.events.clear()
+        self.uipath_client.reset_simulation_run_state()
         self._init_agent_handlers()
         self.scenario_tracker.start_scenario()
 
