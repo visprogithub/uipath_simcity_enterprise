@@ -62,8 +62,9 @@ def _serialize_approval(approval: UiPathApproval) -> Dict[str, Any]:
 @router.get("/pending")
 async def get_pending_approvals() -> Dict[str, Any]:
     """
-    Returns all pending approval items from the UiPath Action Center queue,
-    plus any unacknowledged critical-severity alerts that need human attention.
+    Returns the pending approval items from the UiPath Action Center queue.
+    Critical alerts are NOT included here (they live in the Alert Feed); only their
+    unacknowledged count is reported, so the UI can badge "N in Alert Feed →".
     """
     # Auto-expire approvals past their SLA so the queue can't grow unbounded.
     timeout_seconds = 5 * 60

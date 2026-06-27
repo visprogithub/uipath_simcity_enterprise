@@ -63,13 +63,30 @@ When **VERITAS** (the compliance agent) sees a compliance-sensitive workflow dur
 - **Decided = done** — once you approve or reject a workflow, it is **never re-gated**.
 - **Cooldown** — after *any* human decision, VERITAS pauses creating new approvals for `UIPATH_APPROVAL_COOLDOWN_SECONDS` (default **45s**), so clearing the queue actually sticks instead of instantly refilling. Once the cooldown elapses, an ongoing crisis may surface a few new approvals (ongoing crisis = ongoing oversight).
 
-The Human Approvals modal also shows the **3 most-recent unacknowledged critical alerts** for visibility; the full stream lives in the Alert Feed.
+The Human Approvals modal contains **only genuine approval decisions** — critical alerts are deliberately **not** mixed into it (that previously created an un-clearable treadmill). The modal reports the unacknowledged-critical *count* so the UI can badge "N in Alert Feed →", but the full alert stream lives in the **Alert Feed**, not the approvals queue.
 
 ---
 
 ## Failure behavior — no silent fallbacks
 
 Both orchestration modes are **fail-forward**: if UiPath is unconfigured, a release isn't published, auth fails, or a job faults, the UI shows a **Faulted job with the real reason** and the API returns a true `502/503` — it never fakes a successful run. Failed player actions (e.g. activating failover with no backup building in the scenario) surface as a warning **alert** rather than silently doing nothing. You can always tell whether automation actually ran.
+
+---
+
+## Exports — what they are and where they go
+
+The **Coding Agent** (top bar), the **Debug Workflow** tab, and the **Reports** modal all produce downloadable artifacts. They split into two kinds: **things you import into UiPath Studio and publish to Orchestrator**, and **human-facing documents**.
+
+| Export | What it is | Where it goes / how to use it |
+|--------|------------|-------------------------------|
+| **Reports → Process Templates → Download** | Per-process `Main.xaml` + `project.json` for the five response processes (`Incident_Escalation`, `Crisis_Response`, `Approval_Chain`, `Emergency_Staffing`, `Trust_Recovery_Protocol`). Hand-structured, demo-ready. | Put both files in a folder, open it as a project in **UiPath Studio** (or `uipath pack`), then **publish to Orchestrator**. These are the exact processes the agents trigger at runtime. |
+| **Coding Agent → Download XAML** | A `workflow.xaml` generated *live* from the current crisis by the `coding_gen` robot (gpt-4.1-mini via the LLM Gateway). | Import into **UiPath Studio** and **publish to Orchestrator**, same as above. It's LLM-generated, so treat it as a starting point that may need cleanup before it runs. |
+| **Debug Workflow → suggested fix / XAML patch** | A root-cause diagnosis plus a corrected **XAML fragment** for a faulted workflow. | **Not** a full import — paste the patch into your *existing* workflow in Studio and apply the listed remediation steps. |
+| **Reports → After-Action Report → Download JSON** | Incident retrospective: timeline, metrics, and what each agent did. | A **deliverable** — file or share it (incident review, post-mortem). Not a UiPath import. |
+| **Reports → Runbook → Download .md / .json** | An operational runbook for responders, generated from the run. | **Documentation** for the ops / SOC team. Not a UiPath import. |
+| **Reports → Calibration Score** | An autonomy-calibration certificate — evidence the agents acted at appropriate trust/autonomy levels. | **Governance / compliance artifact.** Not a UiPath import. |
+
+> **Note:** these buttons are browser downloads — the import-and-publish step into UiPath Studio / Orchestrator is **manual**. (Separately, the running agents *do* start jobs on already-published processes via the Orchestrator API — that's the live integration; these exports are the "author new automation" side.)
 
 ---
 
@@ -137,6 +154,7 @@ Run individually with `npm run dev:backend` / `npm run dev:frontend`.
 | `UIPATH_CLIENT_ID` | yes | External Application client ID |
 | `UIPATH_CLIENT_SECRET` | yes | External Application client secret (**single-quote in `.env`** if it contains special chars) |
 | `UIPATH_FOLDER_ID` | yes | Orchestrator folder (organization-unit) ID |
+| `UIPATH_WEBHOOK_SECRET` | no | HMAC-SHA256 secret used to verify inbound Orchestrator webhooks. Only needed if you wire up webhooks (set it when creating the webhook in Orchestrator). |
 | `UIPATH_ORCHESTRATION_MODE` | no | `direct` (default) or `maestro` |
 | `UIPATH_MAESTRO_CASE_PROCESS` | no | Maestro Case release name (default `MaestroCity_PipelineTest`) |
 | `UIPATH_MAESTRO_COOLDOWN_SECONDS` | no | Dedupe window for Maestro Case starts (default `25`) |

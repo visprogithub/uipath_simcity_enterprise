@@ -128,7 +128,7 @@ export class CityRenderer {
   update(state: SimulationState, overlay: OverlayMode): void {
     this.lastState = state;
     this.updateBuildings(state.buildings);
-    this.updateConnections(state.buildings);
+    this.updateConnections(state.buildings, state.failoverActive ?? false);
     this.updateWorkflows(state.workflows, state.buildings);
     this.updateAgents(state.agents, state.buildings);
     this.updateOverlay(state, overlay);
@@ -432,7 +432,7 @@ export class CityRenderer {
 
   // ─── Connections ────────────────────────────────────────────────────────────
 
-  private updateConnections(buildings: Building[]): void {
+  private updateConnections(buildings: Building[], failoverActive = false): void {
     // Clear all connection graphics
     for (const g of this.connectionGraphics.values()) {
       this.connectionLayer.removeChild(g);
@@ -482,6 +482,27 @@ export class CityRenderer {
 
         this.connectionLayer.addChild(lineG);
         this.connectionGraphics.set(key, lineG);
+      }
+    }
+
+    // When failover is engaged, light up the backup carrying the load: bright
+    // pulsing lines from the backup infrastructure to the data center it's covering
+    // and to every system that depends on that hub. This makes the failover building
+    // visibly do its job instead of sitting disconnected.
+    if (failoverActive) {
+      const backup = buildings.find((b) => b.type === 'backup_infra');
+      const hub = buildings.find((b) => b.type === 'cloud_datacenter');
+      if (backup && hub) {
+        const pulse = 0.5 + 0.4 * Math.sin(this.animationTime * 0.005);
+        const bc = this.getBuildingCenter(backup);
+        const targets = [hub, ...buildings.filter((b) => b.dependencies.includes(hub.id))];
+        for (const t of targets) {
+          const tc = this.getBuildingCenter(t);
+          const lineG = new PIXI.Graphics();
+          this.drawDashedLine(lineG, bc.x, bc.y, tc.x, tc.y, 0x00ffaa, pulse);
+          this.connectionLayer.addChild(lineG);
+          this.connectionGraphics.set(`failover:${backup.id}:${t.id}`, lineG);
+        }
       }
     }
   }
@@ -1049,7 +1070,7 @@ export class CityRenderer {
 
     // Re-draw connection lines with updated animation time
     if (this.lastState) {
-      this.updateConnections(this.lastState.buildings);
+      this.updateConnections(this.lastState.buildings, this.lastState.failoverActive ?? false);
     }
   }
 

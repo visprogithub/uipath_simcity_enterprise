@@ -200,7 +200,7 @@ export default function CodeGenModal() {
               <Sparkles size={18} className="text-yellow-400" />
               <span className="text-white font-bold text-lg">Coding Agent</span>
             </div>
-            <div className="text-white/40 text-xs mt-0.5">Powered by Claude AI</div>
+            <div className="text-white/40 text-xs mt-0.5">Powered by gpt-4.1-mini · UiPath LLM Gateway</div>
           </div>
           <button
             onClick={() => setCodeGenOpen(false)}
@@ -282,7 +282,7 @@ export default function CodeGenModal() {
                     <div className="w-12 h-12 rounded-full border-2 border-purple-500/30" />
                     <div className="absolute inset-0 w-12 h-12 rounded-full border-t-2 border-purple-400 animate-spin" />
                   </div>
-                  <div className="text-white/60 text-sm font-mono">Claude is generating your UiPath workflow...</div>
+                  <div className="text-white/60 text-sm font-mono">Generating your UiPath workflow on the robot...</div>
                   <CyclingText active={loading} />
                 </div>
               )}

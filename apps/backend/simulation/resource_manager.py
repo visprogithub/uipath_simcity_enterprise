@@ -89,15 +89,23 @@ class ResourceManager:
         if self.humanStrain > 70:
             strain_delta *= 1.4
 
-        # Recovery: automation reduces strain when things are stable
+        # Recovery: when the grid is healthy AND well-staffed, operators decompress.
+        # This must be strong enough to actually CLEAR strain after a crisis — the old
+        # -0.6/tick meant strain stayed pinned near 100 even with every building green
+        # and full staffing, because it climbs fast (amplified) but fell slowly. Recovery
+        # now scales with staffing, so bringing crews back up directly brings strain down.
         stable_count = sum(1 for b in buildings if b.status == BuildingStatus.operational)
         total = len(buildings) if buildings else 1
         stability_ratio = stable_count / total
+        avg_staffing = sum(b.staffingLevel for b in buildings) / total
 
-        if stability_ratio > 0.8 and degraded_count == 0:
-            strain_delta -= 0.6  # recover quickly when stable
+        if stability_ratio >= 1.0 and degraded_count == 0:
+            # Fully green: fast decompression, faster the better-staffed (up to -3.0/tick).
+            strain_delta -= 1.5 + 1.5 * (avg_staffing / 100.0)
+        elif stability_ratio > 0.8 and degraded_count == 0:
+            strain_delta -= 1.0 + 1.0 * (avg_staffing / 100.0)
         elif stability_ratio > 0.6:
-            strain_delta -= 0.2
+            strain_delta -= 0.4
 
         self.humanStrain = max(0.0, min(100.0, self.humanStrain + strain_delta))
         self._pending_approvals = len(approval_wf)
