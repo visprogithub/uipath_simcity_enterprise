@@ -18,6 +18,14 @@ Built for the [UiPath AgentHack](https://uipath-agenthack.devpost.com/) (Track 1
 
 ---
 
+## Agent type
+
+**This solution uses UiPath Coded Agents.** Every agent is a LangGraph state graph built with the UiPath Python SDK (`uipath-langchain`, `UiPathAzureChatOpenAI`), published as an Orchestrator release and executed on serverless robots, reasoning through the **UiPath LLM Gateway** (`gpt-4.1-mini`). This covers all five operational agents — **ARIA, SENTINEL, VERITAS, ECHO, APEX** — plus the **Coding Agent** (`coding_gen`) and the **scenario generator** (`scenario_gen`). Source: [`_uipath_build/`](_uipath_build/).
+
+The same five operational agents are *additionally* provided as **UiPath Agent Builder (low-code) configurations** (the in-app Agent Builder panel and [docs/AGENT_BUILDER_SPEC.md](docs/AGENT_BUILDER_SPEC.md)) as a low-code representation — but the deployed, executing agents are the Coded Agents described above.
+
+---
+
 ## Why an enterprise would actually use this
 
 The city is the demo vehicle. The **sellable asset is the agentic incident-response layer underneath it** — the UiPath coded agents, the Orchestrator runbooks, and the Maestro Case with human-approval gates. **Maestro City is the rehearsal-and-validation environment for that layer.**
