@@ -1,0 +1,38 @@
+%% Maestro City — architecture (Slide 6). Render at mermaid.live or via mermaid-cli.
+%% Edit nodes/labels here; export PNG/SVG for the deck.
+flowchart LR
+    subgraph FE["FRONTEND · → Vercel"]
+        direction TB
+        A1["Next.js 14<br/>App Router"]
+        A2["PixiJS<br/>city renderer"]
+        A3["Zustand store"]
+    end
+
+    subgraph BE["BACKEND · → Railway / Render"]
+        direction TB
+        B1["FastAPI + WebSocket"]
+        B2["Simulation tick loop · 1 Hz<br/>cascade → agents → poll"]
+        B3["5 agent handlers<br/>APEX · SENTINEL · VERITAS · ECHO · ARIA"]
+        B4["UiPath client<br/>OAuth2 · StartJobs · job polling"]
+    end
+
+    subgraph UP["UiPath PLATFORM"]
+        direction TB
+        C1["Coded Agents<br/>uipath-langchain · LangGraph"]
+        C2["LLM Gateway<br/>gpt-4.1-mini"]
+        C3["Orchestrator<br/>serverless robot jobs"]
+        C4["Maestro Case<br/>MaestroCity_PipelineTest"]
+        C5["Action Center<br/>human approval"]
+    end
+
+    FE <-->|"WebSocket + REST"| BE
+    BE -->|"OAuth2 · StartJobs · poll"| UP
+    C1 -.reason via.-> C2
+    C4 -.delivers task.-> C5
+
+    classDef fe fill:#1E293B,stroke:#334155,color:#F8FAFC;
+    classDef be fill:#1E293B,stroke:#334155,color:#F8FAFC;
+    classDef up fill:#10243F,stroke:#3B82F6,color:#F8FAFC;
+    class A1,A2,A3 fe;
+    class B1,B2,B3,B4 be;
+    class C1,C2,C3,C4,C5 up;

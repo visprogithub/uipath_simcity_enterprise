@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Maestro City">
+  <defs>
+    <linearGradient id="m" x1="12" y1="10" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00d4ff"/>
+      <stop offset="1" stop-color="#00ffcc"/>
+    </linearGradient>
+  </defs>
+  <!-- Maestro City tile — app navy (#0a0e1a) with a cyan→teal accent, matching the in-app "M" mark -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#0a0e1a"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#m)" opacity="0.14"/>
+  <rect x="3.5" y="3.5" width="57" height="57" rx="13.5" fill="none" stroke="url(#m)" stroke-width="2.5"/>
+  <path d="M16 46 V19 L32 37 L48 19 V46" fill="none" stroke="url(#m)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

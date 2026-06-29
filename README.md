@@ -12,6 +12,9 @@ Built for the [UiPath AgentHack](https://uipath-agenthack.devpost.com/) (Track 1
 
 Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on **UiPath Automation Cloud**. Pick a scenario (e.g. **Healthcare**) → trigger an outage → watch the agents fire **real UiPath jobs**, flip **Direct → Maestro Case**, action the **human approval**, and open **Reports**. (Same beats as the [judging walkthrough](#setup--run--step-by-step-for-judging) below.)
 
+![Maestro City — live Healthcare Enterprise scenario: system-metrics rail, the city dependency graph, staffing controls, and the live event timeline](docs/images/dashboard.png)
+*The live dashboard — system metrics, the city dependency graph, and a real-time event stream of UiPath job starts and approvals.*
+
 > ⚠️ **First load may take ~50 seconds.** The backend runs on Render's **free tier**, which **sleeps after ~15 minutes of inactivity** and cold-starts on the next request. If the app shows **"Offline / Connecting"** or no data at first, **wait ~a minute and refresh** — it's waking up, not broken. (Tip: open the app a minute before reviewing so it's warm.)
 >
 > Requires JavaScript enabled. Prefer to run it yourself? The **[Setup & run](#setup--run--step-by-step-for-judging)** section below works fully locally.
@@ -19,6 +22,9 @@ Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on
 ---
 
 ## What it does
+
+![Scenario selector — seven enterprise verticals (Healthcare, Financial Services, Retail & E-commerce, Manufacturing, Energy & Utilities, Aviation, Telecommunications), each card showing its buildings, agents, and compliance frameworks, plus a Create Custom Scenario tile](docs/images/scenario-selector.png)
+*Seven enterprise verticals out of the box — each with its own systems, agents, and compliance frameworks (HIPAA, SOX, PCI-DSS, NERC CIP, FAA Part 139…) — plus a natural-language **Create Custom Scenario** generator.*
 
 - A live "city" of enterprise systems (EHR, data center, pharmacy, comms, …) runs on a real-time tick loop.
 - Five role-based agents — **APEX** (executive strategy), **SENTINEL** (incident response), **VERITAS** (compliance), **ECHO** (communications), **ARIA** (operations) — monitor the city and act within configurable **autonomy levels**.
@@ -30,15 +36,18 @@ Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on
 
 ---
 
-## Agent type
+## Agent Type
 
-This solution uses Coded Agents.
+> **Coded Agents** — orchestrated by a **low-code UiPath Maestro Case**.
+>
+> Read strictly ("what kind of agents do the AI reasoning?") the answer is **Coded Agents**: all five operational agents, plus the Coding Agent and the scenario generator, are UiPath Coded Agents. The solution *also* uses a **low-code Maestro Case** (`MaestroCity_PipelineTest`) for orchestration and the human-approval gate — so end-to-end it combines **Coded Agents + a low-code Maestro Case** (the Track 1 centerpiece).
 
 Every AI agent in Maestro City is a UiPath Coded Agent — authored with the uipath-langchain SDK as a LangGraph graph, published with the uipath CLI, and run on serverless Automation Cloud Robots, reasoning through the UiPath LLM Gateway (gpt-4.1-mini). There are no direct OpenAI/model-vendor calls anywhere in the codebase. This includes:
 
 - the five operational agents — APEX, SENTINEL, VERITAS, ECHO, ARIA; - the Coding Agent (coding_gen) that generates/patches UiPath XAML; and - the scenario generator (scenario_gen) that builds new scenarios from natural language.
 
 These coded agents are orchestrated by a low-code Maestro Case (MaestroCity_PipelineTest) with a human-approval gate delivered to Action Center. So: the agents are Coded; the orchestration + human gate layer is low-code Maestro. Agent source lives in _uipath_build/.
+
 ---
 
 ## Why an enterprise would actually use this
@@ -70,11 +79,17 @@ A switch in the **UiPath Integration** panel flips how agent actions reach UiPat
 
 Default is set by `UIPATH_ORCHESTRATION_MODE` (`direct` | `maestro`) and can be changed at runtime.
 
+![UiPath Integration panel — Connected status, the Direct/Maestro Case toggle set to Maestro Case, three successful Maestro Case jobs routed through MaestroCity_PipelineTest, and pending human approvals](docs/images/uipath-panel.png)
+*The UiPath panel during a live run: connected, in Maestro Case mode, with real Orchestrator jobs succeeding and approvals queued.*
+
 ---
 
 ## Human-in-the-loop approvals
 
 When **VERITAS** (the compliance agent) sees a compliance-sensitive workflow during a crisis, it **holds it for human approval** instead of letting it run. Pending approvals surface in the **Human Approvals** modal (top bar) and the **UiPath** sidebar panel; both Approve/Reject buttons call the real `/api/approvals/{id}/approve|reject` endpoints. In **Maestro Case** mode the same gate is also delivered to **UiPath Action Center**.
+
+![Human Approvals modal — high-risk workflows held for human decision, each showing risk level, route, priority, and requesting agent, with Approve and Reject actions](docs/images/approvals.png)
+*The Human Approvals modal — each card shows the risk level, route, and priority; Approve/Reject call real backend endpoints (and Action Center in Maestro mode).*
 
 **What gets gated:** any workflow typed `approval_request` (compliance-sensitive by definition), or any workflow whose risk exceeds `0.7`.
 
@@ -115,6 +130,8 @@ The **Coding Agent** (top bar), the **Debug Workflow** tab, and the **Reports** 
 
 ## Architecture
 
+![Maestro City architecture — Next.js frontend on Vercel and a stateful FastAPI backend on Render, with the backend driving UiPath Automation Cloud: coded agents via the LLM Gateway, Orchestrator jobs on serverless robots, and a Maestro Case with an Action Center approval gate](docs/images/architecture.svg)
+
 ```
 apps/frontend   Next.js 14 (App Router) + PixiJS city renderer + Zustand   → Vercel
 apps/backend    FastAPI + WebSocket + Pydantic, real-time tick loop        → Railway / Render
@@ -128,12 +145,38 @@ The backend is **stateful** (in-memory simulation + a WebSocket broadcast loop),
 
 ## UiPath components used
 
-- **External Application** (OAuth2 client-credentials) for API auth against the tenant.
-- **Orchestrator** — folders, packages, releases, `StartJobs` (OData), job polling.
-- **Serverless Automation Cloud Robots** — run all jobs (`Strategy: ModernJobsCount`, `RuntimeType: Serverless`).
-- **Coded agents** (`uipath-langchain`, LangGraph + `UiPathAzureChatOpenAI`) — the 5 operational agents, the Coding Agent (`coding_gen`), and the scenario generator (`scenario_gen`), all reasoning via the **LLM Gateway**.
-- **Orchestrator processes** — the 5 response workflows (`Incident_Escalation`, `Crisis_Response`, `Approval_Chain`, `Emergency_Staffing`, `Trust_Recovery_Protocol`).
-- **Maestro Case** (`MaestroCity_PipelineTest`) — rule-driven case with agent tasks + a human-in-the-loop approval delivered to **Action Center**.
+> **Verified live against the tenant on 2026-06-29** — org `hackathon26_313` / tenant `DefaultTenant`, folder **`MaestroCity`** (id `3084969`). Every name below is a real published object in Orchestrator, queried via the OData API — not a placeholder. **Totals: 2 folders · 18 published processes** = 1 Maestro Case + 7 Coded Agents + 5 agent-invocation processes + 5 response workflows.
+
+### Platform & auth
+- **External Application** — OAuth2 **client-credentials**; granted scopes `OR.Jobs OR.Execution OR.Folders OR.Tasks`.
+- **Orchestrator** — folders `MaestroCity` (id `3084969`) + `Shared` (id `3042878`); Releases + Packages; `StartJobs` (OData) and job-status polling.
+- **Serverless Automation Cloud Robots** — every job runs `Strategy: ModernJobsCount`, `RuntimeType: Serverless`.
+- **LLM Gateway** — all agent reasoning (gpt-4.1-mini); no direct OpenAI/model-vendor calls anywhere.
+- **Action Center** — receives the human-in-the-loop approval task in Maestro Case mode.
+
+### Maestro Case — low-code orchestration (Track 1 centerpiece)
+| Release | Version |
+|---|---|
+| `MaestroCity_PipelineTest` | 1.0.3 |
+
+Rule-driven case that folds a burst of agent actions into one instance and gates compliance-sensitive steps behind an **Action Center** approval.
+
+### Coded Agents — `uipath-langchain` / LangGraph, reasoning via the LLM Gateway
+| Coded agent (package) | Version | Role |
+|---|---|---|
+| `apex` | 1.0.2 | Executive strategy |
+| `aria` | 1.0.2 | Operations coordination |
+| `sentinel` | 1.0.2 | Incident response |
+| `veritas` | 1.0.2 | Compliance / approval gating |
+| `echo` | 1.0.2 | Communications |
+| `coding_gen` | 1.0.0 | Generates / patches UiPath XAML from the live crisis |
+| `scenario_gen` | 1.0.0 | Builds new scenarios from natural language |
+
+### Agent-invocation processes the backend triggers via `StartJobs`
+`APEX_Executive_Strategy`, `ARIA_Operations_Coordinator`, `SENTINEL_Incident_Response`, `VERITAS_Compliance`, `ECHO_Communications` — all v1.0.0. These are the exact Release names mapped in [`orchestration/uipath_client.py`](apps/backend/orchestration/uipath_client.py) → `_DEFAULT_AGENT_PROCESSES`.
+
+### Response-workflow processes — the 5 runbooks agents fire (importable XAML)
+`Incident_Escalation`, `Crisis_Response`, `Approval_Chain`, `Emergency_Staffing`, `Trust_Recovery_Protocol` — all v1.0.0.
 
 See [docs/UIPATH_PLATFORM_SETUP.md](docs/UIPATH_PLATFORM_SETUP.md) and [docs/AGENT_BUILDER_SPEC.md](docs/AGENT_BUILDER_SPEC.md) for the full setup.
 

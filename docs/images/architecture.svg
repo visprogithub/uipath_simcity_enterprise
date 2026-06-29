@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Inter, Segoe UI, Arial, sans-serif">
+  <!-- Maestro City architecture — drop into Slide 6 or docs. Colors match the app palette. -->
+  <rect width="1280" height="720" fill="#0F172A"/>
+  <text x="40" y="56" fill="#F8FAFC" font-size="30" font-weight="700">Maestro City — Architecture</text>
+  <text x="40" y="84" fill="#94A3B8" font-size="16">Stateful real-time simulation, orchestrated end-to-end through UiPath</text>
+
+  <!-- ================= FRONTEND ================= -->
+  <text x="60" y="132" fill="#3B82F6" font-size="15" font-weight="700" letter-spacing="2">FRONTEND</text>
+  <rect x="40" y="148" width="300" height="360" rx="14" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <rect x="64" y="176" width="252" height="86" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="80" y="210" fill="#F8FAFC" font-size="18" font-weight="600">Next.js 14</text>
+  <text x="80" y="236" fill="#94A3B8" font-size="14">App Router · TypeScript</text>
+  <rect x="64" y="278" width="252" height="86" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="80" y="312" fill="#F8FAFC" font-size="18" font-weight="600">PixiJS</text>
+  <text x="80" y="338" fill="#94A3B8" font-size="14">live city renderer</text>
+  <rect x="64" y="380" width="252" height="86" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="80" y="414" fill="#F8FAFC" font-size="18" font-weight="600">Zustand store</text>
+  <text x="80" y="440" fill="#94A3B8" font-size="14">WebSocket subscriber</text>
+  <text x="60" y="496" fill="#10B981" font-size="14" font-weight="600">→ Vercel</text>
+
+  <!-- ================= BACKEND ================= -->
+  <text x="392" y="132" fill="#3B82F6" font-size="15" font-weight="700" letter-spacing="2">BACKEND</text>
+  <rect x="372" y="148" width="320" height="360" rx="14" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <rect x="396" y="176" width="272" height="66" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="412" y="206" fill="#F8FAFC" font-size="17" font-weight="600">FastAPI + WebSocket</text>
+  <text x="412" y="228" fill="#94A3B8" font-size="13">Pydantic · REST + /ws</text>
+  <rect x="396" y="254" width="272" height="66" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="412" y="284" fill="#F8FAFC" font-size="17" font-weight="600">Simulation tick loop · 1 Hz</text>
+  <text x="412" y="306" fill="#94A3B8" font-size="13">cascade → agents → poll → broadcast</text>
+  <rect x="396" y="332" width="272" height="66" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="412" y="362" fill="#F8FAFC" font-size="17" font-weight="600">5 agent handlers</text>
+  <text x="412" y="384" fill="#94A3B8" font-size="12">APEX · SENTINEL · VERITAS · ECHO · ARIA</text>
+  <rect x="396" y="410" width="272" height="66" rx="10" fill="#0F172A" stroke="#334155"/>
+  <text x="412" y="440" fill="#F8FAFC" font-size="17" font-weight="600">UiPath client</text>
+  <text x="412" y="462" fill="#94A3B8" font-size="12">OAuth2 · StartJobs · job polling</text>
+  <text x="392" y="498" fill="#10B981" font-size="14" font-weight="600">→ Railway / Render</text>
+
+  <!-- ================= UIPATH ================= -->
+  <text x="744" y="132" fill="#3B82F6" font-size="15" font-weight="700" letter-spacing="2">UiPath PLATFORM</text>
+  <rect x="724" y="148" width="516" height="430" rx="14" fill="#10243F" stroke="#3B82F6" stroke-width="2"/>
+  <rect x="748" y="176" width="468" height="60" rx="10" fill="#0F172A" stroke="#1E3A5F"/>
+  <text x="766" y="204" fill="#F8FAFC" font-size="17" font-weight="600">Coded Agents</text>
+  <text x="766" y="224" fill="#94A3B8" font-size="13">uipath-langchain · LangGraph · serverless robots</text>
+  <rect x="748" y="248" width="468" height="60" rx="10" fill="#0F172A" stroke="#1E3A5F"/>
+  <text x="766" y="276" fill="#F8FAFC" font-size="17" font-weight="600">LLM Gateway</text>
+  <text x="766" y="296" fill="#94A3B8" font-size="13">gpt-4.1-mini · all inference governed (no direct OpenAI)</text>
+  <rect x="748" y="320" width="468" height="60" rx="10" fill="#0F172A" stroke="#1E3A5F"/>
+  <text x="766" y="348" fill="#F8FAFC" font-size="17" font-weight="600">Orchestrator</text>
+  <text x="766" y="368" fill="#94A3B8" font-size="13">Incident_Escalation · Crisis_Response · Approval_Chain …</text>
+  <rect x="748" y="392" width="468" height="60" rx="10" fill="#0F172A" stroke="#8B5CF6"/>
+  <text x="766" y="420" fill="#F8FAFC" font-size="17" font-weight="600">Maestro Case</text>
+  <text x="766" y="440" fill="#94A3B8" font-size="13">MaestroCity_PipelineTest · collapses burst → one case</text>
+  <rect x="748" y="464" width="468" height="60" rx="10" fill="#0F172A" stroke="#F59E0B"/>
+  <text x="766" y="492" fill="#F8FAFC" font-size="17" font-weight="600">Action Center</text>
+  <text x="766" y="512" fill="#94A3B8" font-size="13">human approval for high-risk actions</text>
+
+  <!-- ================= CONNECTORS ================= -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#64748B"/></marker>
+    <marker id="arrL" markerWidth="10" markerHeight="10" refX="2" refY="3" orient="auto"><path d="M8,0 L0,3 L8,6 Z" fill="#64748B"/></marker>
+  </defs>
+  <line x1="340" y1="328" x2="372" y2="328" stroke="#64748B" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arrL)"/>
+  <text x="318" y="312" fill="#94A3B8" font-size="12" text-anchor="middle">WebSocket + REST</text>
+  <line x1="692" y1="328" x2="724" y2="328" stroke="#3B82F6" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="708" y="312" fill="#3B82F6" font-size="12" text-anchor="middle">OAuth2 · StartJobs · poll</text>
+
+  <text x="40" y="624" fill="#64748B" font-size="13">No silent fallbacks: if UiPath / the LLM is unavailable, jobs surface as Faulted in the UI — never faked.</text>
+  <text x="40" y="690" fill="#475569" font-size="12">Maestro City · UiPath AgentHack</text>
+</svg>
