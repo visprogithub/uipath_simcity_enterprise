@@ -6,17 +6,15 @@ Built for the [UiPath AgentHack](https://uipath-agenthack.devpost.com/) (Track 1
 
 ---
 
-## Agent type
+## Try it live (for judges)
 
-**This solution uses Coded Agents.**
+**▶ Live app: https://uipath-simcity-enterprise-frontend-atzzwsft0.vercel.app/**
 
-Every AI agent in Maestro City is a UiPath **Coded Agent** — authored with the [`uipath-langchain`](https://pypi.org/project/uipath-langchain/) SDK as a **LangGraph** graph, published with the `uipath` CLI, and run on **serverless Automation Cloud Robots**, reasoning through the **UiPath LLM Gateway** (gpt-4.1-mini). There are no direct OpenAI/model-vendor calls anywhere in the codebase. This includes:
+Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on **UiPath Automation Cloud**. Pick a scenario (e.g. **Healthcare**) → trigger an outage → watch the agents fire **real UiPath jobs**, flip **Direct → Maestro Case**, action the **human approval**, and open **Reports**. (Same beats as the [judging walkthrough](#setup--run--step-by-step-for-judging) below.)
 
-- the five operational agents — **APEX, SENTINEL, VERITAS, ECHO, ARIA**;
-- the **Coding Agent** (`coding_gen`) that generates/patches UiPath XAML; and
-- the **scenario generator** (`scenario_gen`) that builds new scenarios from natural language.
-
-These coded agents are **orchestrated by a low-code Maestro Case** (`MaestroCity_PipelineTest`) with a human-approval gate delivered to **Action Center**. So: the *agents* are **Coded**; the *orchestration + human gate* layer is low-code Maestro. Agent source lives in [`_uipath_build/`](_uipath_build/).
+> ⚠️ **First load may take ~50 seconds.** The backend runs on Render's **free tier**, which **sleeps after ~15 minutes of inactivity** and cold-starts on the next request. If the app shows **"Offline / Connecting"** or no data at first, **wait ~a minute and refresh** — it's waking up, not broken. (Tip: open the app a minute before reviewing so it's warm.)
+>
+> Requires JavaScript enabled. Prefer to run it yourself? The **[Setup & run](#setup--run--step-by-step-for-judging)** section below works fully locally.
 
 ---
 
@@ -34,10 +32,13 @@ These coded agents are **orchestrated by a low-code Maestro Case** (`MaestroCity
 
 ## Agent type
 
-**This solution uses UiPath Coded Agents.** Every agent is a LangGraph state graph built with the UiPath Python SDK (`uipath-langchain`, `UiPathAzureChatOpenAI`), published as an Orchestrator release and executed on serverless robots, reasoning through the **UiPath LLM Gateway** (`gpt-4.1-mini`). This covers all five operational agents — **ARIA, SENTINEL, VERITAS, ECHO, APEX** — plus the **Coding Agent** (`coding_gen`) and the **scenario generator** (`scenario_gen`). Source: [`_uipath_build/`](_uipath_build/).
+This solution uses Coded Agents.
 
-The same five operational agents are *additionally* provided as **UiPath Agent Builder (low-code) configurations** (the in-app Agent Builder panel and [docs/AGENT_BUILDER_SPEC.md](docs/AGENT_BUILDER_SPEC.md)) as a low-code representation — but the deployed, executing agents are the Coded Agents described above.
+Every AI agent in Maestro City is a UiPath Coded Agent — authored with the uipath-langchain SDK as a LangGraph graph, published with the uipath CLI, and run on serverless Automation Cloud Robots, reasoning through the UiPath LLM Gateway (gpt-4.1-mini). There are no direct OpenAI/model-vendor calls anywhere in the codebase. This includes:
 
+- the five operational agents — APEX, SENTINEL, VERITAS, ECHO, ARIA; - the Coding Agent (coding_gen) that generates/patches UiPath XAML; and - the scenario generator (scenario_gen) that builds new scenarios from natural language.
+
+These coded agents are orchestrated by a low-code Maestro Case (MaestroCity_PipelineTest) with a human-approval gate delivered to Action Center. So: the agents are Coded; the orchestration + human gate layer is low-code Maestro. Agent source lives in _uipath_build/.
 ---
 
 ## Why an enterprise would actually use this
