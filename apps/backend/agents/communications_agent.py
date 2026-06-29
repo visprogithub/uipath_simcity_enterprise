@@ -64,13 +64,17 @@ class CommunicationsAgent(BaseAgent):
             if self.has_action_budget():
                 # Level >= 2: trigger notification blast
                 if self.can_act_autonomously(2):
-                    job = await engine.uipath_client.start_job(
-                        "Notification_Blast",
+                    # ECHO's notification action runs its own coded agent on UiPath. (The old
+                    # 'Notification_Blast' process was never published, so it Faulted every time.)
+                    job = await engine.uipath_client.invoke_coded_agent(
+                        "echo",
                         {
+                            "action": "notification_blast",
                             "alertCount": len(unacked_critical),
                             "alertIds": [a.id for a in unacked_critical[:5]],
-                            "tick": tick,
                         },
+                        phase=engine.phase.value,
+                        tick=tick,
                     )
                     if job:
                         self.emit_event(
@@ -78,15 +82,15 @@ class CommunicationsAgent(BaseAgent):
                             SimulationEventType.uipath_job_started,
                             {
                                 "agentId": self.model.id,
-                                "processName": "Notification_Blast",
+                                "processName": job.processName,
                                 "jobId": job.id,
                                 "alertCount": len(unacked_critical),
                             },
                         )
-                        self.record_action(
-                            f"Triggered Notification_Blast for {len(unacked_critical)} unacknowledged critical alerts"
-                        )
-                        acted = True
+                    self.record_action(
+                        f"Dispatched ECHO notification response for {len(unacked_critical)} unacknowledged critical alerts"
+                    )
+                    acted = True
                 else:
                     self.create_alert(
                         engine,
