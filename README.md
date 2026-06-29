@@ -6,6 +6,20 @@ Built for the [UiPath AgentHack](https://uipath-agenthack.devpost.com/) (Track 1
 
 ---
 
+## Agent type
+
+**This solution uses Coded Agents.**
+
+Every AI agent in Maestro City is a UiPath **Coded Agent** — authored with the [`uipath-langchain`](https://pypi.org/project/uipath-langchain/) SDK as a **LangGraph** graph, published with the `uipath` CLI, and run on **serverless Automation Cloud Robots**, reasoning through the **UiPath LLM Gateway** (gpt-4.1-mini). There are no direct OpenAI/model-vendor calls anywhere in the codebase. This includes:
+
+- the five operational agents — **APEX, SENTINEL, VERITAS, ECHO, ARIA**;
+- the **Coding Agent** (`coding_gen`) that generates/patches UiPath XAML; and
+- the **scenario generator** (`scenario_gen`) that builds new scenarios from natural language.
+
+These coded agents are **orchestrated by a low-code Maestro Case** (`MaestroCity_PipelineTest`) with a human-approval gate delivered to **Action Center**. So: the *agents* are **Coded**; the *orchestration + human gate* layer is low-code Maestro. Agent source lives in [`_uipath_build/`](_uipath_build/).
+
+---
+
 ## What it does
 
 - A live "city" of enterprise systems (EHR, data center, pharmacy, comms, …) runs on a real-time tick loop.
@@ -124,29 +138,60 @@ See [docs/UIPATH_PLATFORM_SETUP.md](docs/UIPATH_PLATFORM_SETUP.md) and [docs/AGE
 
 ---
 
-## Local setup
+## Setup & run — step-by-step (for judging)
 
-**Prerequisites:** Node 18+, Python 3.11+, and (for real automation) a UiPath Automation Cloud tenant with an External Application.
+**Prerequisites**
+- **Node 18+** and **Python 3.11+** (and `git`).
+- A **UiPath Automation Cloud tenant** with an **External Application** (OAuth2 client-credentials) — only needed to see *real* jobs. The app also runs without it (UiPath calls then show as unavailable/Faulted in the UI — never faked).
+- *(Rebuilding/republishing the UiPath packages is **not** required to run or judge — the agents, processes, serverless robot, and Maestro Case are already published in the tenant. Re-publishing only needs the `uipath` CLI + `uipcli` + .NET 8.)*
 
+**1 · Clone & install**
 ```bash
-# 1. Install everything
-npm run install:all          # installs frontend + pip deps
-
-# 2. Configure backend secrets
-cp apps/backend/.env.example apps/backend/.env
-#    fill in your UiPath values (see env table below)
-
-# 3. (optional) point the frontend at the backend
-cp apps/frontend/.env.example apps/frontend/.env.local
-#    NEXT_PUBLIC_BACKEND_URL defaults to http://localhost:8000
-
-# 4. Run both (concurrently)
-npm run dev
+git clone https://github.com/visprogithub/uipath_simcity_enterprise.git
+cd uipath_simcity_enterprise
+npm run install:all          # frontend deps + backend pip deps
 ```
 
-Frontend: <http://localhost:3000> · Backend: <http://localhost:8000>
+**2 · Configure UiPath credentials**
+```bash
+cp apps/backend/.env.example apps/backend/.env
+```
+Fill in the six required values (full table below). Where each comes from:
+| Value | Where to find it |
+|-------|------------------|
+| `UIPATH_CLOUD_URL` | Your tenant base, e.g. `https://cloud.uipath.com` (this project's tenant: `https://staging.uipath.com`) |
+| `UIPATH_ORGANIZATION` / `UIPATH_TENANT` | The two path segments in your Orchestrator URL: `…/<org>/<tenant>/orchestrator_` |
+| `UIPATH_CLIENT_ID` / `UIPATH_CLIENT_SECRET` | **Admin → External Applications** → your app (scopes: `OR.Jobs OR.Execution OR.Folders OR.Tasks`). **Single-quote the secret in `.env`** if it contains `$`, `%`, `#`, etc. |
+| `UIPATH_FOLDER_ID` | Orchestrator → your folder → the `fid` in its URL (this project: the `MaestroCity` folder) |
 
-Run individually with `npm run dev:backend` / `npm run dev:frontend`.
+> For this submission the UiPath objects are already published in the hackathon tenant (`hackathon26_313` / `DefaultTenant`, folder `MaestroCity`). A judge only needs External-Application credentials for that tenant to drive real jobs.
+
+**3 · (optional) point the frontend at the backend**
+```bash
+cp apps/frontend/.env.example apps/frontend/.env.local   # NEXT_PUBLIC_BACKEND_URL defaults to http://localhost:8000
+```
+
+**4 · Run both servers**
+```bash
+npm run dev          # runs backend (uvicorn :8000) + frontend (next :3000) concurrently
+# or individually: npm run dev:backend  /  npm run dev:frontend
+```
+Open **<http://localhost:3000>** (backend health: <http://localhost:8000/api/orchestration/mode>).
+
+**5 · 2-minute judging walkthrough**
+1. **Pick a scenario** — click **Launch Simulation** on **Healthcare Enterprise** (cleanest cascade story).
+2. **Trigger a crisis** — right panel → **Failover** tab → **Trigger Outage** on the *Cloud / Data Center* (severity *full*). Watch buildings cascade and the **Alert Feed** fill.
+3. **See real UiPath jobs** — right panel → **UiPath** tab → the **Active Jobs** list populates (`Incident_Escalation`, `Crisis_Response`, …). Cross-check the same jobs in your **Orchestrator → Jobs** view to confirm they're real.
+4. **Direct → Maestro Case** — flip the **Orchestration Mode** toggle in the UiPath panel; agent actions now route into one **`MaestroCity_PipelineTest`** Maestro Case instance.
+5. **Human approval** — top bar → **Approvals**; approve/reject a VERITAS-gated action (in Maestro mode the task also appears in **Action Center**).
+6. **Autonomy / staffing dials** — right panel → **Autonomy** tab → change an agent's level (e.g. SENTINEL → 3 auto-failover, VERITAS → 1 holds for approval).
+7. **Exports** — top bar → **Reports** → step through **After-Action / Runbook / Calibration / Templates** and hit **Download**.
+8. **Coding Agent (bonus)** — top bar → **Coding Agent** → **Generate Workflow** (XAML from the live crisis) and the **Debug** tab (diagnose + patch).
+
+**Troubleshooting**
+- *Port already in use* — stop any process on `8000`/`3000` and re-run.
+- *UiPath panel shows "Offline" / jobs Faulted* — credentials aren't set or the tenant is unreachable; the app surfaces this honestly (no fake success). Recheck the six env values.
+- *Secret looks corrupted at runtime* — wrap `UIPATH_CLIENT_SECRET` in single quotes in `.env`.
 
 ---
 
