@@ -57,7 +57,7 @@ class UiPathClient:
         # "maestro" = agent actions are routed into a single published Maestro Case
         # instance (MaestroCity_PipelineTest) that orchestrates the agents + human approval.
         self.orchestration_mode: str = os.getenv("UIPATH_ORCHESTRATION_MODE", "direct").lower()
-        self.maestro_case_process: str = os.getenv("UIPATH_MAESTRO_CASE_PROCESS", "MaestroCity_PipelineTest")
+        self.maestro_case_process: str = os.getenv("UIPATH_MAESTRO_CASE_PROCESS", "MaestroCity_Orchestrator")
         self._last_maestro_start: float = 0.0
         # Dedupe window: one Maestro Case instance per burst of agent actions.
         self._maestro_cooldown: float = float(os.getenv("UIPATH_MAESTRO_COOLDOWN_SECONDS", "25"))
@@ -78,6 +78,15 @@ class UiPathClient:
             )
             for agent_id, default_name in _DEFAULT_AGENT_PROCESSES.items()
         }
+
+        # Operational coded agents (LangGraph + LLM Gateway) are published as lowercase
+        # releases in the MaestroCity folder. The engine fires these as REAL jobs when an
+        # agent acts, so the agents' reasoning runs on UiPath. Per-release cooldown keeps a
+        # sustained crisis from flooding the robot/LLM with one job every tick.
+        self._last_coded_invoke: Dict[str, float] = {}
+        self._coded_invoke_cooldown: float = float(
+            os.getenv("UIPATH_CODED_AGENT_COOLDOWN_SECONDS", "20")
+        )
 
         if not self._configured:
             logger.warning(
@@ -175,14 +184,18 @@ class UiPathClient:
         process_name: str,
         input_args: dict,
         folder_id: Optional[str] = None,
+        allow_maestro_fold: bool = True,
     ) -> Optional[UiPathJob]:
         """Start a UiPath automation job.
 
         In "maestro" orchestration mode, individual agent process calls are folded
         into a single published Maestro Case instance instead of firing separately.
+        Pass allow_maestro_fold=False to always fire the named release directly
+        (used for coded-agent reasoning jobs, which must run in both modes).
         """
         if (
-            self.orchestration_mode == "maestro"
+            allow_maestro_fold
+            and self.orchestration_mode == "maestro"
             and self._configured
             and process_name != self.maestro_case_process
         ):
@@ -272,6 +285,44 @@ class UiPathClient:
             return _fault(f"StartJobs failed: HTTP {e.response.status_code} {e.response.text[:150]}")
         except Exception as e:
             return _fault(f"StartJobs error: {e}")
+
+    async def invoke_coded_agent(
+        self,
+        release_name: str,
+        context: dict,
+        phase: str = "unknown",
+        tick: int = 0,
+    ) -> Optional[UiPathJob]:
+        """Run an operational coded agent's REASONING on UiPath as a real job.
+
+        Fires the published LangGraph coded agent (e.g. `aria`, `sentinel`) on a
+        serverless robot; it reasons via the UiPath LLM Gateway and returns a
+        recommendation. Non-blocking and fail-forward — the job is tracked and shows
+        in the UiPath panel + Orchestrator. Always fires directly (never folded into
+        the Maestro Case) so agent logic runs on the platform in BOTH modes.
+
+        A per-release cooldown stops a sustained crisis from firing one job per tick.
+        Returns None when UiPath is unconfigured or the agent is still cooling down.
+        """
+        if not self._configured:
+            return None
+
+        now = time.time()
+        if now - self._last_coded_invoke.get(release_name, 0.0) < self._coded_invoke_cooldown:
+            return None  # still cooling down — don't flood the robot/LLM Gateway
+        self._last_coded_invoke[release_name] = now
+
+        # Input contract matches the coded agents' entry point: agentId/context/phase/tick.
+        input_args = {
+            "agentId": release_name,
+            "context": json.dumps(context, default=str),
+            "phase": phase,
+            "tick": tick,
+        }
+        job = await self.start_job(release_name, input_args, allow_maestro_fold=False)
+        if job:
+            job.processName = f"Coded Agent ◆ {release_name.upper()}"
+        return job
 
     def set_orchestration_mode(self, mode: str) -> str:
         """Switch between 'direct' (per-agent jobs) and 'maestro' (single Maestro Case)."""

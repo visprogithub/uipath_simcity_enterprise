@@ -1,0 +1,6 @@
+{
+  "ProjectType": "Agent",
+  "Name": "MaestroCity_Orchestrator",
+  "Description": "Maestro Case \u2014 orchestrates the 5 operational coded agents on UiPath",
+  "MainFile": null
+}

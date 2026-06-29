@@ -58,6 +58,17 @@ TICK_INTERVAL = float(os.getenv("SIMULATION_TICK_INTERVAL", "1.0"))
 MAX_EVENTS = 100
 MAX_ALERTS = 50
 
+# Each operational agent maps to its published UiPath coded agent (LangGraph + LLM
+# Gateway). When an agent acts, the engine fires this release as a real Orchestrator
+# job so the agent's reasoning runs on the platform. See uipath_client.invoke_coded_agent.
+_AGENT_TYPE_TO_CODED_RELEASE = {
+    "operations_coordinator": "aria",
+    "incident_response": "sentinel",
+    "compliance": "veritas",
+    "communications": "echo",
+    "executive_strategy": "apex",
+}
+
 
 class SimulationEngine:
     """
@@ -331,10 +342,45 @@ class SimulationEngine:
 
         try:
             await handler.decide(self)
+            # When the agent acts, run its REASONING on UiPath as a real coded-agent job
+            # (LangGraph + LLM Gateway). Non-blocking and cooldown-gated inside
+            # invoke_coded_agent, so the tick loop never stalls on the round-trip.
+            #
+            # Direct mode: each agent fires its own coded-agent job here. Maestro mode: the
+            # published Maestro orchestrator (MaestroCity_Orchestrator) fans out to all five
+            # agents itself, so we skip here to avoid double-firing.
+            if agent.actionsThisTick > 0 and self.uipath_client.orchestration_mode != "maestro":
+                release = _AGENT_TYPE_TO_CODED_RELEASE.get(agent.type.value)
+                if release:
+                    await self.uipath_client.invoke_coded_agent(
+                        release,
+                        self._agent_reasoning_context(agent),
+                        phase=self.phase.value,
+                        tick=self.tick_count,
+                    )
         except Exception as e:
             logger.error(f"Agent {agent.id} decision error: {e}", exc_info=True)
             agent.status = AgentStatus.idle
             agent.lastAction = f"Error: {str(e)[:80]}"
+
+    def _agent_reasoning_context(self, agent: Agent) -> dict:
+        """Compact, JSON-serializable crisis snapshot handed to a coded agent to reason over."""
+        return {
+            "agent": agent.name,
+            "phase": self.phase.value,
+            "tick": self.tick_count,
+            "lastAction": agent.lastAction,
+            "metrics": {
+                "opStability": round(self.metrics.operationalStability, 1),
+                "serviceAvailability": round(self.metrics.serviceAvailability, 1),
+                "systemTrust": round(self.metrics.systemTrust, 1),
+                "humanStrain": round(self.metrics.humanStrain, 1),
+            },
+            "degradedBuildings": [
+                {"name": b.name, "health": round(b.health, 1), "status": b.status.value}
+                for b in self.buildings if b.health < 90
+            ][:6],
+        }
 
     def _generate_cascade_alerts(self, affected_ids: List[str]) -> None:
         """Generate alerts when cascade propagation occurs."""

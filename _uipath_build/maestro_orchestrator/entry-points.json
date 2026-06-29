@@ -1,0 +1,96 @@
+{
+    "$schema": "https://cloud.uipath.com/draft/2024-12/entry-point",
+    "$id": "entry-points.json",
+    "entryPoints": [
+        {
+            "filePath": "maestro_case",
+            "uniqueId": "cbce7072-d653-4c65-96d3-a83e6a265aea",
+            "type": "agent",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "context": {
+                        "default": "{}",
+                        "title": "Context",
+                        "type": "string"
+                    },
+                    "phase": {
+                        "default": "unknown",
+                        "title": "Phase",
+                        "type": "string"
+                    },
+                    "tick": {
+                        "default": 0,
+                        "title": "Tick",
+                        "type": "integer"
+                    }
+                },
+                "required": []
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "directive": {
+                        "title": "Directive",
+                        "type": "string"
+                    },
+                    "escalated": {
+                        "title": "Escalated",
+                        "type": "boolean"
+                    },
+                    "invokedAgents": {
+                        "title": "Invokedagents",
+                        "type": "integer"
+                    },
+                    "agentResults": {
+                        "title": "Agentresults",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "directive",
+                    "escalated",
+                    "invokedAgents",
+                    "agentResults"
+                ]
+            },
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "__start__",
+                        "name": "__start__",
+                        "type": "__start__",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "run_case",
+                        "name": "run_case",
+                        "type": "node",
+                        "subgraph": null,
+                        "metadata": {}
+                    },
+                    {
+                        "id": "__end__",
+                        "name": "__end__",
+                        "type": "__end__",
+                        "subgraph": null,
+                        "metadata": {}
+                    }
+                ],
+                "edges": [
+                    {
+                        "source": "__start__",
+                        "target": "run_case",
+                        "label": null
+                    },
+                    {
+                        "source": "run_case",
+                        "target": "__end__",
+                        "label": null
+                    }
+                ]
+            }
+        }
+    ]
+}

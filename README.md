@@ -38,9 +38,9 @@ Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on
 
 ## Agent Type
 
-> **Coded Agents** — orchestrated by a **low-code UiPath Maestro Case**.
+> **Coded Agents**, orchestrated by a **Maestro Case** — and the agent logic genuinely runs on UiPath.
 >
-> Read strictly ("what kind of agents do the AI reasoning?") the answer is **Coded Agents**: all five operational agents, plus the Coding Agent and the scenario generator, are UiPath Coded Agents. The solution *also* uses a **low-code Maestro Case** (`MaestroCity_PipelineTest`) for orchestration and the human-approval gate — so end-to-end it combines **Coded Agents + a low-code Maestro Case** (the Track 1 centerpiece).
+> All seven AI agents are UiPath **Coded Agents** (LangGraph + LLM Gateway): the five operational agents (`aria`, `sentinel`, `veritas`, `echo`, `apex`), the Coding Agent (`coding_gen`), and the scenario generator (`scenario_gen`). At runtime the backend fires them as **real serverless jobs** — in **Direct** mode each agent runs its own coded-agent job; in **Maestro** mode a published Maestro Case (`MaestroCity_Orchestrator`) fans out to all five and aggregates their recommendations. So end-to-end it is **Coded Agents driven by a Maestro Case orchestrator**, with the reasoning executing on the platform (verifiable in **Orchestrator → Jobs**: one orchestrator job spawns five child agent jobs).
 
 Every AI agent in Maestro City is a UiPath Coded Agent — authored with the uipath-langchain SDK as a LangGraph graph, published with the uipath CLI, and run on serverless Automation Cloud Robots, reasoning through the UiPath LLM Gateway (gpt-4.1-mini). There are no direct OpenAI/model-vendor calls anywhere in the codebase. This includes:
 
