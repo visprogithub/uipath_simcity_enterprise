@@ -495,6 +495,68 @@ class UiPathClient:
             logger.error(f"Failed to create action item '{title}': {e}")
             return None
 
+    async def list_action_center_tasks(self) -> List[Dict[str, Any]]:
+        """List pending Action Center tasks — the REAL human-approval tasks a Maestro Case
+        delivers to the Action Center inbox (distinct from the simulated VERITAS approvals).
+
+        Returns [] when UiPath is unconfigured. Requires the OR.Tasks scope (granted).
+        """
+        if not self._configured:
+            return []
+        token = await self._get_token()
+        if not token:
+            return []
+        try:
+            url = self._build_orchestrator_url(
+                "odata/Tasks?$filter=Status eq 'Pending' or Status eq 'Unassigned'"
+                "&$top=25&$orderby=CreationTime desc"
+            )
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(url, headers=self._build_headers(token))
+                resp.raise_for_status()
+                return resp.json().get("value", [])
+        except Exception as e:
+            logger.error(f"Failed to list Action Center tasks: {e}")
+            return []
+
+    async def complete_action_center_task(
+        self, task_id: str, approved: bool, data: Optional[dict] = None
+    ) -> bool:
+        """Complete an Action Center task with an Approve/Reject outcome, which RESUMES the
+        Maestro Case at its human-approval gate.
+
+        Sends the standard CompleteTask OData action. The exact action/data shape depends on
+        the task's defined outcomes in the Maestro designer — validate against a live task
+        (run the case to a human gate) and adjust `action`/`data` if the case doesn't resume.
+        """
+        if not self._configured:
+            return False
+        token = await self._get_token()
+        if not token:
+            return False
+        try:
+            url = self._build_orchestrator_url(
+                "odata/Tasks/UiPath.Server.Configuration.OData.CompleteTask"
+            )
+            payload = {
+                "taskId": int(task_id),
+                "action": "Approve" if approved else "Reject",
+                "data": data or {},
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, headers=self._build_headers(token), json=payload)
+                resp.raise_for_status()
+            logger.info(f"Completed Action Center task {task_id} ({'approved' if approved else 'rejected'})")
+            return True
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Failed to complete task {task_id}: HTTP {e.response.status_code} {e.response.text[:150]}"
+            )
+            return False
+        except Exception as e:
+            logger.error(f"Failed to complete task {task_id}: {e}")
+            return False
+
     async def poll_active_jobs(self) -> None:
         """Update status of all active jobs. Called each tick to sync job states."""
         if not self._active_jobs:

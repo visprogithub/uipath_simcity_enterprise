@@ -90,6 +90,28 @@ async def get_pending_approvals() -> Dict[str, Any]:
         for approval in engine.uipath_client._pending_approvals.values()
     ]
 
+    # In Maestro mode, ALSO surface the REAL Action Center tasks the Maestro Case created,
+    # so the modal shows genuine human-in-the-loop tasks. Approving one (id "ac-<taskId>")
+    # completes it on UiPath and resumes the case. (Additive — simulated approvals still work.)
+    if engine.uipath_client.orchestration_mode == "maestro" and engine.uipath_client._configured:
+        try:
+            for t in await engine.uipath_client.list_action_center_tasks():
+                data = t.get("Data") if isinstance(t.get("Data"), dict) else {}
+                uipath_items.append({
+                    "id": f"ac-{t.get('Id')}",
+                    "title": t.get("Title") or "Maestro Case approval",
+                    "description": (data.get("description") or data.get("Description")
+                                    or "Human-in-the-loop approval from the Maestro Case."),
+                    "severity": "critical",
+                    "requestedBy": "Maestro Case · Action Center",
+                    "createdAt": now,
+                    "timeoutAt": now + timeout_seconds,
+                    "isOverdue": False,
+                    "source": "uipath_action_center",
+                })
+        except Exception as e:  # never let Action Center hiccups break the modal
+            logger.error(f"Could not fetch Action Center tasks: {e}")
+
     unacked_critical_count = sum(
         1 for a in engine.alerts
         if not a.acknowledged and a.severity == AlertSeverity.critical
@@ -119,6 +141,25 @@ async def approve_item(approval_id: str, body: ApproveRequest) -> Dict[str, Any]
     For UiPath Action Center items: marks as granted and resumes the associated workflow.
     For critical alert acknowledgments: marks the alert as acknowledged.
     """
+    # Real Action Center task (Maestro Case) — complete it on UiPath to resume the case.
+    if approval_id.startswith("ac-"):
+        ok = await engine.uipath_client.complete_action_center_task(
+            approval_id[3:], approved=True,
+            data={"approvedBy": body.approvedBy, "notes": body.notes},
+        )
+        if not ok:
+            raise HTTPException(status_code=502, detail="Failed to complete the Action Center task on UiPath.")
+        engine.emit_event(SimulationEventType.approval_granted, {
+            "approvalId": approval_id, "approvedBy": body.approvedBy, "notes": body.notes,
+            "source": "action_center", "effect": "maestro_case_resumed",
+        })
+        engine.create_alert(
+            severity=AlertSeverity.info,
+            message=f"ACTION CENTER: task approved by {body.approvedBy} — Maestro Case resumed",
+        )
+        return {"success": True, "approvalId": approval_id, "effect": "maestro_case_resumed",
+                "approvedBy": body.approvedBy, "timestamp": time.time()}
+
     # Check UiPath approvals first
     approval = _get_approval_item(approval_id)
     if approval:
@@ -221,6 +262,25 @@ async def reject_item(approval_id: str, body: RejectRequest) -> Dict[str, Any]:
     For UiPath Action Center items: marks as rejected and triggers escalation.
     For critical alerts: escalates the alert to the next tier.
     """
+    # Real Action Center task (Maestro Case) — complete it with a Reject outcome.
+    if approval_id.startswith("ac-"):
+        ok = await engine.uipath_client.complete_action_center_task(
+            approval_id[3:], approved=False,
+            data={"rejectedBy": body.rejectedBy, "reason": body.reason},
+        )
+        if not ok:
+            raise HTTPException(status_code=502, detail="Failed to complete the Action Center task on UiPath.")
+        engine.emit_event(SimulationEventType.escalation_triggered, {
+            "approvalId": approval_id, "rejectedBy": body.rejectedBy, "reason": body.reason,
+            "source": "action_center", "effect": "maestro_case_resumed",
+        })
+        engine.create_alert(
+            severity=AlertSeverity.warning,
+            message=f"ACTION CENTER: task rejected by {body.rejectedBy} — {body.reason}",
+        )
+        return {"success": True, "approvalId": approval_id, "effect": "maestro_case_resumed",
+                "rejectedBy": body.rejectedBy, "reason": body.reason, "timestamp": time.time()}
+
     # Check UiPath approvals first
     approval = _get_approval_item(approval_id)
     if approval:
