@@ -31,6 +31,10 @@ async def lifespan(app: FastAPI):
     # Register the WebSocket manager as a state subscriber
     engine.subscribe(manager.broadcast_state)
 
+    # Auto-idle the sim when no browser is connected, so the live deployment doesn't
+    # tick (and fire UiPath jobs) overnight with no viewers.
+    engine.get_viewer_count = lambda: manager.connection_count
+
     # Start the simulation engine in the background
     sim_task = asyncio.create_task(engine.start())
     logger.info("Maestro City simulation engine started")

@@ -114,6 +114,13 @@ class SimulationEngine:
         self.running: bool = False
         self._task: Optional[asyncio.Task] = None
 
+        # Pause / auto-idle. The sim only advances (and only fires UiPath jobs) when not
+        # paused AND someone is watching. get_viewer_count is wired in main.py to the live
+        # WebSocket connection count, so the deployed app idles overnight with no viewers
+        # instead of burning the tenant's robot minutes. None = always run (local dev).
+        self.paused: bool = False
+        self.get_viewer_count: Optional[Callable[[], int]] = None
+
         # ─── Reporting subsystems ─────────────────────────────────────────────
         from simulation.scenario_tracker import ScenarioTracker
         from simulation.after_action_reporter import AfterActionReporter
@@ -166,10 +173,30 @@ class SimulationEngine:
 
         while self.running:
             try:
-                await self._tick()
+                if self._should_tick():
+                    await self._tick()
             except Exception as e:
                 logger.error(f"Tick {self.tick_count} error: {e}", exc_info=True)
             await asyncio.sleep(TICK_INTERVAL)
+
+    def _should_tick(self) -> bool:
+        """Advance the sim only when not paused AND someone is watching.
+
+        Auto-idles when no WebSocket client is connected so the live deployment doesn't
+        fire UiPath jobs overnight with no viewers. When get_viewer_count is unset (local
+        dev) the sim always runs.
+        """
+        if self.paused:
+            return False
+        if self.get_viewer_count is not None and self.get_viewer_count() <= 0:
+            return False
+        return True
+
+    def set_paused(self, paused: bool) -> bool:
+        """Pause/resume the live simulation (stops ticking and UiPath job firing)."""
+        self.paused = bool(paused)
+        logger.info(f"Simulation {'paused' if self.paused else 'resumed'} (by request)")
+        return self.paused
 
     async def stop(self) -> None:
         """Stop the simulation."""

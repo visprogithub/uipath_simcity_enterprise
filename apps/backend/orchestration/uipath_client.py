@@ -59,7 +59,10 @@ class UiPathClient:
         self.orchestration_mode: str = os.getenv("UIPATH_ORCHESTRATION_MODE", "direct").lower()
         self.maestro_case_process: str = os.getenv("UIPATH_MAESTRO_CASE_PROCESS", "MaestroCity_Orchestrator")
         self._last_maestro_start: float = 0.0
-        # Dedupe window: one Maestro Case instance per burst of agent actions.
+        # ONE Maestro Case per crisis: track the in-flight Case so we never spawn another
+        # while the previous is still Running/awaiting human review (the 25s cooldown is now
+        # only a backstop against rapid double-fire within a single tick burst).
+        self._active_maestro_job_id: Optional[str] = None
         self._maestro_cooldown: float = float(os.getenv("UIPATH_MAESTRO_COOLDOWN_SECONDS", "25"))
 
         # Human-in-the-loop approval state:
@@ -199,16 +202,25 @@ class UiPathClient:
             and self._configured
             and process_name != self.maestro_case_process
         ):
-            now = time.time()
-            if now - self._last_maestro_start < self._maestro_cooldown:
-                # A Maestro Case is already orchestrating this burst — don't spawn another.
+            # One Maestro Case per crisis: if a Case is still in flight (Running/Pending —
+            # e.g. awaiting human review), fold this action in instead of starting another.
+            # This stops the every-25s pile-up of Case instances and human-review tasks.
+            active = self._active_jobs.get(self._active_maestro_job_id or "")
+            if active and active.state in ("Pending", "Running"):
                 logger.info(
-                    f"Maestro mode: '{process_name}' folded into the active Maestro Case "
-                    f"(within {self._maestro_cooldown:.0f}s window)"
+                    f"Maestro mode: a Case is already in flight ({self._active_maestro_job_id}); "
+                    f"'{process_name}' folded in (not starting another)"
                 )
                 return None
+            now = time.time()
+            if now - self._last_maestro_start < self._maestro_cooldown:
+                # Backstop: don't double-fire within one tick burst.
+                return None
             self._last_maestro_start = now
-            return await self._start_maestro_case(process_name, input_args, folder_id)
+            job = await self._start_maestro_case(process_name, input_args, folder_id)
+            if job:
+                self._active_maestro_job_id = job.id
+            return job
 
         # Create a simulation-tracked job regardless of UiPath connection
         job_id = f"sim-{uuid.uuid4().hex[:8]}"

@@ -3,7 +3,7 @@ REST API routes for Maestro City backend.
 """
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -257,6 +257,22 @@ async def set_orchestration_mode(body: Dict[str, Any]) -> Dict[str, Any]:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"mode": mode, "maestroCaseProcess": engine.uipath_client.maestro_case_process}
+
+
+# ─── Simulation pause/resume (stops ticking + UiPath job firing) ────────────────
+
+@router.get("/api/simulation/status")
+async def get_simulation_status() -> Dict[str, Any]:
+    """Whether the sim is paused/running and how many viewers are connected."""
+    viewers = engine.get_viewer_count() if engine.get_viewer_count else None
+    return {"paused": engine.paused, "running": engine.running, "viewers": viewers}
+
+
+@router.post("/api/simulation/pause")
+async def pause_simulation(body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Pause or resume the live simulation. Body: {"paused": true|false} (default: pause)."""
+    paused = True if not body else bool(body.get("paused", True))
+    return {"paused": engine.set_paused(paused)}
 
 
 @router.post("/api/scenario/reset")

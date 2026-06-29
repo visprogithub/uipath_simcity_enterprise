@@ -166,7 +166,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   selectAgent: (id) => set({ selectedAgent: id, selectedBuilding: null }),
 
-  togglePause: () => set((s) => ({ isPaused: !s.isPaused })),
+  togglePause: () =>
+    set((s) => {
+      const next = !s.isPaused;
+      // Also pause/resume the live BACKEND so it stops ticking and firing UiPath jobs
+      // (not just the frontend). Fire-and-forget; the UI flips immediately.
+      api('/api/simulation/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paused: next }),
+      }).catch(() => {});
+      return { isPaused: next };
+    }),
 
   setConnectionStatus: (s) => set({ connectionStatus: s }),
 
