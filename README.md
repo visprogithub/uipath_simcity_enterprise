@@ -17,6 +17,8 @@ Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on
 
 > ⚠️ **First load may take ~50 seconds.** The backend runs on Render's **free tier**, which **sleeps after ~15 minutes of inactivity** and cold-starts on the next request. If the app shows **"Offline / Connecting"** or no data at first, **wait ~a minute and refresh** — it's waking up, not broken. (Tip: open the app a minute before reviewing so it's warm.)
 >
+> The simulation **auto-idles when no one is watching** (and the ⏸ PAUSE button stops it server-side), so it doesn't fire UiPath jobs overnight — it resumes ticking as soon as you open the app.
+>
 > Requires JavaScript enabled. Prefer to run it yourself? The **[Setup & run](#setup--run--step-by-step-for-judging)** section below works fully locally.
 
 ---
@@ -46,7 +48,7 @@ Every AI agent in Maestro City is a UiPath Coded Agent — authored with the uip
 
 - the five operational agents — APEX, SENTINEL, VERITAS, ECHO, ARIA; - the Coding Agent (coding_gen) that generates/patches UiPath XAML; and - the scenario generator (scenario_gen) that builds new scenarios from natural language.
 
-These coded agents are orchestrated by a low-code Maestro Case (MaestroCity_PipelineTest) with a human-approval gate delivered to Action Center. So: the agents are Coded; the orchestration + human gate layer is low-code Maestro. Agent source lives in _uipath_build/.
+At runtime the backend invokes these coded agents as real serverless jobs. In **Direct** mode each operational agent runs its own coded-agent job; in **Maestro** mode the published **`MaestroCity_Orchestrator`** coded agent fans out to all five and aggregates their recommendations — verified live (one orchestrator job → five successful child agent jobs). Compliance-sensitive actions gate behind a human approval delivered to **Action Center**. Agent source lives in `_uipath_build/` (`agents_sep/`, `coding_gen/`, `scenario_gen/`, `maestro_orchestrator/`).
 
 ---
 
@@ -74,12 +76,12 @@ A switch in the **UiPath Integration** panel flips how agent actions reach UiPat
 
 | Mode | Behavior |
 |------|----------|
-| **Direct** | Each agent fires its own Orchestrator process (`Incident_Escalation`, `Approval_Chain`, …). |
-| **Maestro Case** | Agent actions are routed into a single **`MaestroCity_PipelineTest`** Maestro Case instance that orchestrates the agents + human approval. A burst of actions during one outage collapses into one Case instance. |
+| **Direct** | Each agent fires its own **coded-agent** reasoning job (`aria`, `sentinel`, …) plus its Orchestrator response process (`Incident_Escalation`, `Approval_Chain`, …). |
+| **Maestro Case** | One **`MaestroCity_Orchestrator`** job **fans out to all five coded agents** on UiPath and aggregates their recommendations, gated behind a human approval. Starts **once per crisis** (not on a timer) — no instance pile-up. |
 
 Default is set by `UIPATH_ORCHESTRATION_MODE` (`direct` | `maestro`) and can be changed at runtime.
 
-![UiPath Integration panel — Connected status, the Direct/Maestro Case toggle set to Maestro Case, three successful Maestro Case jobs routed through MaestroCity_PipelineTest, and pending human approvals](docs/images/uipath-panel.png)
+![UiPath Integration panel — Connected status, the Direct/Maestro Case toggle set to Maestro Case, successful Maestro Case jobs, and pending human approvals](docs/images/uipath-panel.png)
 *The UiPath panel during a live run: connected, in Maestro Case mode, with real Orchestrator jobs succeeding and approvals queued.*
 
 ---
@@ -145,7 +147,7 @@ The backend is **stateful** (in-memory simulation + a WebSocket broadcast loop),
 
 ## UiPath components used
 
-> **Verified live against the tenant on 2026-06-29** — org `hackathon26_313` / tenant `DefaultTenant`, folder **`MaestroCity`** (id `3084969`). Every name below is a real published object in Orchestrator, queried via the OData API — not a placeholder. **Totals: 2 folders · 18 published processes** = 1 Maestro Case + 7 Coded Agents + 5 agent-invocation processes + 5 response workflows.
+> **Verified live against the tenant on 2026-06-29** — org `hackathon26_313` / tenant `DefaultTenant`, folder **`MaestroCity`** (id `3084969`). Every name below is a real published object in Orchestrator, queried via the OData API — not a placeholder. **Totals: 2 folders · 19 published releases** = the `MaestroCity_Orchestrator` Maestro Case + 7 Coded Agents + 5 agent-invocation processes + 5 response workflows (plus the superseded `MaestroCity_PipelineTest` stub).
 
 ### Platform & auth
 - **External Application** — OAuth2 **client-credentials**; granted scopes `OR.Jobs OR.Execution OR.Folders OR.Tasks`.
@@ -154,12 +156,12 @@ The backend is **stateful** (in-memory simulation + a WebSocket broadcast loop),
 - **LLM Gateway** — all agent reasoning (gpt-4.1-mini); no direct OpenAI/model-vendor calls anywhere.
 - **Action Center** — receives the human-in-the-loop approval task in Maestro Case mode.
 
-### Maestro Case — low-code orchestration (Track 1 centerpiece)
-| Release | Version |
-|---|---|
-| `MaestroCity_PipelineTest` | 1.0.3 |
+### Maestro Case — orchestration (Track 1 centerpiece)
+| Release | Version | Role |
+|---|---|---|
+| `MaestroCity_Orchestrator` | 1.0.0 | **Coded** orchestrator — one job fans out to all five operational coded agents, waits, and aggregates their recommendations into a single directive |
 
-Rule-driven case that folds a burst of agent actions into one instance and gates compliance-sensitive steps behind an **Action Center** approval.
+When the backend is in Maestro mode it starts **one** `MaestroCity_Orchestrator` job **per crisis**, which spawns five child agent jobs (`aria`/`sentinel`/`veritas`/`echo`/`apex`) and synthesizes a coordinated response. **Verified live** — orchestrator job → 5 successful child jobs in Orchestrator → Jobs. (Supersedes the earlier `MaestroCity_PipelineTest` placeholder.) Compliance-sensitive steps gate behind an **Action Center** approval.
 
 ### Coded Agents — `uipath-langchain` / LangGraph, reasoning via the LLM Gateway
 | Coded agent (package) | Version | Role |
@@ -226,7 +228,7 @@ Open **<http://localhost:3000>** (backend health: <http://localhost:8000/api/orc
 1. **Pick a scenario** — click **Launch Simulation** on **Healthcare Enterprise** (cleanest cascade story).
 2. **Trigger a crisis** — right panel → **Failover** tab → **Trigger Outage** on the *Cloud / Data Center* (severity *full*). Watch buildings cascade and the **Alert Feed** fill.
 3. **See real UiPath jobs** — right panel → **UiPath** tab → the **Active Jobs** list populates (`Incident_Escalation`, `Crisis_Response`, …). Cross-check the same jobs in your **Orchestrator → Jobs** view to confirm they're real.
-4. **Direct → Maestro Case** — flip the **Orchestration Mode** toggle in the UiPath panel; agent actions now route into one **`MaestroCity_PipelineTest`** Maestro Case instance.
+4. **Direct → Maestro Case** — flip the **Orchestration Mode** toggle in the UiPath panel; agent actions now route into one **`MaestroCity_Orchestrator`** job that fans out to all five coded agents (watch the five child jobs appear in **Orchestrator → Jobs**).
 5. **Human approval** — top bar → **Approvals**; approve/reject a VERITAS-gated action (in Maestro mode the task also appears in **Action Center**).
 6. **Autonomy / staffing dials** — right panel → **Autonomy** tab → change an agent's level (e.g. SENTINEL → 3 auto-failover, VERITAS → 1 holds for approval).
 7. **Exports** — top bar → **Reports** → step through **After-Action / Runbook / Calibration / Templates** and hit **Download**.
@@ -266,8 +268,9 @@ There are **exactly two** env files the app reads, each holding different things
 | `UIPATH_FOLDER_ID` | yes | Orchestrator folder (organization-unit) ID |
 | `UIPATH_WEBHOOK_SECRET` | no | HMAC-SHA256 secret used to verify inbound Orchestrator webhooks. Only needed if you wire up webhooks (set it when creating the webhook in Orchestrator). |
 | `UIPATH_ORCHESTRATION_MODE` | no | `direct` (default) or `maestro` |
-| `UIPATH_MAESTRO_CASE_PROCESS` | no | Maestro Case release name (default `MaestroCity_PipelineTest`) |
-| `UIPATH_MAESTRO_COOLDOWN_SECONDS` | no | Dedupe window for Maestro Case starts (default `25`) |
+| `UIPATH_MAESTRO_CASE_PROCESS` | no | Maestro Case release fired in Maestro mode (default `MaestroCity_Orchestrator`) |
+| `UIPATH_MAESTRO_COOLDOWN_SECONDS` | no | Backstop against double-firing a Maestro Case within one tick burst (default `25`). The main guard is **one Case per crisis** — a new one won't start while the previous is still in flight. |
+| `UIPATH_CODED_AGENT_COOLDOWN_SECONDS` | no | Per-agent cooldown for firing a coded-agent reasoning job in Direct mode, so a sustained crisis doesn't flood the robot (default `20`) |
 | `UIPATH_APPROVAL_COOLDOWN_SECONDS` | no | After a human approve/reject, seconds VERITAS waits before creating new approvals (default `45`) |
 
 If credentials are absent, the app runs but UiPath calls report as unavailable in the UI (no faked success).
