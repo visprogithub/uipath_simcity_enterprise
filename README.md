@@ -198,6 +198,19 @@ Open **<http://localhost:3000>** (backend health: <http://localhost:8000/api/orc
 
 ## Environment variables
 
+### Where credentials go — read this first
+
+There are **exactly two** env files the app reads, each holding different things, plus their **deployed equivalents** in the host dashboards. Nothing else is read.
+
+| Scope | Local file | Deployed home | Holds |
+|-------|-----------|---------------|-------|
+| **Backend** | `apps/backend/.env` | **Render** dashboard → Environment | UiPath secrets (`UIPATH_CLIENT_ID`, `UIPATH_CLIENT_SECRET`, tenant, folder, …) |
+| **Frontend** | `apps/frontend/.env.local` | **Vercel** project → Environment Variables | `NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_WS_URL` |
+
+> ⚠️ **There is no repo-root `.env`.** The backend calls `load_dotenv()` while running from `rootDir: apps/backend`, so it loads **`apps/backend/.env`** — a `.env` at the repo root is **not** read by anything. If you keep a scratch file there, don't trust it as the source of truth; the authoritative UiPath secret is the `UIPATH_CLIENT_SECRET` in `apps/backend/.env`. When deploying, copy *that* value into Render — not whatever happens to sit at the repo root.
+
+> ⚠️ **`NEXT_PUBLIC_*` is baked in at build time.** Next.js inlines these into the bundle when it builds, so the deployed frontend only reaches the backend if `NEXT_PUBLIC_BACKEND_URL` was set in Vercel **before** the build. Changing it requires a **redeploy** — a plain "save variable" won't re-inline it. If the live site is calling `http://localhost:8000`, this is why.
+
 ### Backend (`apps/backend/.env`)
 
 | Variable | Required | Description |
