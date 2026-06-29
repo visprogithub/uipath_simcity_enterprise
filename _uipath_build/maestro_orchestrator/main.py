@@ -3,9 +3,10 @@ response ON the platform.
 
 When the Maestro Case starts, this agent fans out to the five operational coded agents
 (aria, sentinel, veritas, echo, apex) as REAL Orchestrator jobs, waits for each one's
-recommendation (produced via the UiPath LLM Gateway), and aggregates them into a single
-coordinated directive. Every agent call is a real serverless job — this is the
-orchestration layer executing on UiPath, not a stub.
+recommendation (produced via the UiPath LLM Gateway), then **synthesizes** them into a single
+coordinated directive with one more LLM Gateway call (gpt-4.1-mini, via uipath-langchain) —
+consistent with the operational agents. Every agent call is a real serverless job; this is
+the orchestration layer executing on UiPath, not a stub.
 
 Child agents are started with the same StartJobs (ModernJobsCount / Serverless) pattern the
 backend uses, then polled to completion. URL/token/folder come from the robot-injected
@@ -16,10 +17,13 @@ import json
 import os
 
 import httpx
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import START, StateGraph, END
+from uipath_langchain.chat import UiPathAzureChatOpenAI
 from pydantic import BaseModel
 
 AGENTS = ["aria", "sentinel", "veritas", "echo", "apex"]
+MODEL = "gpt-4.1-mini-2025-04-14"
 
 _URL = os.environ.get("UIPATH_URL", "https://staging.uipath.com/hackathon26_313/DefaultTenant").rstrip("/")
 _ORCH = f"{_URL}/orchestrator_"
@@ -96,13 +100,28 @@ async def run_case(state: CaseInput) -> CaseOutput:
 
     escalating = [r for r in results if r["escalate"]]
     ok = [r for r in results if r["ok"] and r["recommendation"]]
-    head = (f"{len(escalating)}/5 agents flagged escalation. " if escalating
-            else "Coordinated response — no escalation flagged. ")
-    body = "  ".join(f"[{r['agent'].upper()}] {r['recommendation']}" for r in ok)
-    directive = (head + body)[:1500] or "No agent recommendations returned."
+    summary = "\n".join(f"- {r['agent'].upper()}: {r['recommendation']}" for r in ok)
+
+    # Synthesize ONE coordinated directive from the five agents' recommendations via the
+    # UiPath LLM Gateway (gpt-4.1-mini), consistent with the operational agents. Falls back
+    # to a plain aggregation if the gateway is unavailable, so the Case never fails on synthesis.
+    try:
+        llm = UiPathAzureChatOpenAI(model=MODEL)
+        sys = ("You are the Maestro Case orchestrator coordinating an enterprise operations "
+               "crisis. Five specialist agents have reported below. Synthesize ONE coordinated "
+               "directive in 3-4 sentences: the ordered actions to take now and which agent owns "
+               "each. Be decisive and concrete.")
+        human = f"Phase: {state.phase} (tick {state.tick}).\nAgent recommendations:\n{summary}"
+        res = await llm.ainvoke([SystemMessage(sys), HumanMessage(human)])
+        directive = res.content if isinstance(res.content, str) else str(res.content)
+    except Exception as e:  # noqa: BLE001
+        head = (f"{len(escalating)}/5 agents flagged escalation. " if escalating
+                else "Coordinated response — no escalation flagged. ")
+        body = "  ".join(f"[{r['agent'].upper()}] {r['recommendation']}" for r in ok)
+        directive = (head + body) or f"No agent recommendations returned (synthesis unavailable: {str(e)[:100]})."
 
     return CaseOutput(
-        directive=directive,
+        directive=directive[:1500],
         escalated=bool(escalating),
         invokedAgents=sum(1 for r in results if r["ok"]),
         agentResults=json.dumps(results),

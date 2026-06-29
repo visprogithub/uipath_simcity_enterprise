@@ -1,6 +1,6 @@
 [project]
 name = "MaestroCity_Orchestrator"
-version = "1.0.0"
+version = "1.0.1"
 description = "Maestro Case — orchestrates the 5 operational coded agents on UiPath"
 authors = [{ name = "Maestro City", email = "djbobbysocks@gmail.com" }]
 dependencies = [ "uipath-langchain>=0.13.0, <0.14.0" ]

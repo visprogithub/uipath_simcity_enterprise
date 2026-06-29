@@ -19,6 +19,8 @@ Frontend on **Vercel**, backend on **Render**, and all agents + orchestration on
 >
 > The simulation **auto-idles when no one is watching** (and the ⏸ PAUSE button stops it server-side), so it doesn't fire UiPath jobs overnight — it resumes ticking as soon as you open the app.
 >
+> 👤 **Single shared session — one driver at a time.** The backend runs **one** in-memory simulation that *every* viewer shares (state is broadcast to all over WebSocket); there's no per-user isolation. If two people act at once — trigger an outage, switch scenarios, pause/resume, approve, or flip Direct ↔ Maestro — they'll step on each other (and it routes into one shared Maestro Case / Action Center queue). For a clean evaluation, have **one person drive** while others watch.
+>
 > Requires JavaScript enabled. Prefer to run it yourself? The **[Setup & run](#setup--run--step-by-step-for-judging)** section below works fully locally.
 
 ---
