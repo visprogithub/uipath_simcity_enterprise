@@ -367,7 +367,7 @@ class UiPathClient:
         job_id = f"maestro-{uuid.uuid4().hex[:8]}"
         job = UiPathJob(
             id=job_id,
-            processName=f"Maestro Case ◆ {self.maestro_case_process}",
+            processName=f"Orchestrator ◆ {self.maestro_case_process}",
             state="Pending",
             startedAt=time.time(),
             simulationContext=f"triggered by {triggering_process}",

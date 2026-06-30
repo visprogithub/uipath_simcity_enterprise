@@ -43,7 +43,7 @@ function OrchestrationModeSwitch({
 
   const options: { id: 'direct' | 'maestro'; label: string; hint: string }[] = [
     { id: 'direct', label: 'Direct', hint: 'Agents fire individual Orchestrator jobs' },
-    { id: 'maestro', label: 'Maestro Case', hint: `Routed through ${caseProcess || 'the Maestro Case'}` },
+    { id: 'maestro', label: 'Orchestrator', hint: `Routed through ${caseProcess || 'MaestroCity_Orchestrator'}` },
   ];
 
   return (
