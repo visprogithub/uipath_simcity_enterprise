@@ -289,6 +289,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   fetchScenarios: async () => {
     set({ scenarioLoading: true });
+    // Dev/demo helper: append ?slowstart=8 to the URL to simulate Render's free-tier
+    // cold start (an 8s hang) so you can preview the "Waking up the backend…" UI.
+    if (typeof window !== 'undefined') {
+      const slow = Number(new URLSearchParams(window.location.search).get('slowstart'));
+      if (slow > 0) await new Promise((r) => setTimeout(r, Math.min(slow, 60) * 1000));
+    }
     try {
       const res = await api('/api/scenarios');
       if (!res.ok) throw new Error('Failed to fetch scenarios');

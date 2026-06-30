@@ -353,6 +353,17 @@ export default function ScenarioSelector() {
 
       {/* Grid */}
       <div className="flex-1 px-6 pb-10 max-w-6xl mx-auto w-full">
+        {showSkeletons && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-accent-blue/30 bg-accent-blue/10 px-4 py-3">
+            <span className="mt-0.5 w-4 h-4 rounded-full border-2 border-accent-blue border-t-transparent animate-spin shrink-0" />
+            <p className="text-sm text-text-secondary leading-relaxed">
+              <span className="font-semibold text-text-primary">Waking up the backend…</span>{' '}
+              The demo backend runs on a free tier that sleeps after inactivity, so the first load can take up to{' '}
+              <span className="font-semibold text-text-primary">~50 seconds</span> to spin up. Your scenarios will appear
+              here automatically — this is expected, not an error.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {showSkeletons
             ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
@@ -367,11 +378,20 @@ export default function ScenarioSelector() {
           {!showSkeletons && <CreateScenarioCard onClick={() => setShowCreate(true)} />}
         </div>
 
-        {/* Empty state (not loading, no scenarios) */}
+        {/* Empty state (not loading, no scenarios) — usually the free-tier cold start */}
         {!scenarioLoading && availableScenarios.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-text-dim text-lg mb-2">No scenarios available</p>
-            <p className="text-text-dim text-sm">Make sure the backend is running and reachable</p>
+            <p className="text-text-secondary text-lg mb-2">Still waking the backend up…</p>
+            <p className="text-text-dim text-sm max-w-md mb-4 leading-relaxed">
+              The demo backend runs on a free tier that sleeps after inactivity and can take up to ~50 seconds to spin up
+              on first load (or the request may have just timed out). Give it a moment and retry — it's waking, not broken.
+            </p>
+            <button
+              onClick={() => fetchScenarios()}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-accent-blue/20 border border-accent-blue/50 text-accent-blue transition-colors hover:bg-accent-blue/30"
+            >
+              ↻ Retry
+            </button>
           </div>
         )}
       </div>
