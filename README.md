@@ -79,9 +79,11 @@ A switch in the **UiPath Integration** panel flips how agent actions reach UiPat
 | Mode | Behavior |
 |------|----------|
 | **Direct** | Each agent fires its own **coded-agent** reasoning job (`aria`, `sentinel`, …) plus its Orchestrator response process (`Incident_Escalation`, `Approval_Chain`, …). |
-| **Maestro Case** | One **`MaestroCity_Orchestrator`** job **fans out to all five coded agents** on UiPath and aggregates their recommendations, gated behind a human approval. Starts **once per crisis** (not on a timer) — no instance pile-up. |
+| **Maestro Case** | One **`MaestroCity_Orchestrator`** job **fans out to all five coded agents** on UiPath, then makes a final gpt-4.1-mini call to **synthesize** one coordinated directive. Starts **once per crisis** (not on a timer) — no instance pile-up. |
 
 Default is set by `UIPATH_ORCHESTRATION_MODE` (`direct` | `maestro`) and can be changed at runtime.
+
+> **Two distinct Maestro artifacts — don't conflate them.** The in-app **Direct ↔ Maestro Case** toggle routes through **`MaestroCity_Orchestrator`** — a *coded* orchestrator that fans out to the five agents and synthesizes a directive. The governed **Maestro Case** — a *BPMN* case authored in UiPath Studio/Maestro, with stages and an **Action Center** human-approval gate — is run in Studio (Debug on cloud) and is a **separate** artifact from the in-app toggle. They are two facets of the same idea (governed agent orchestration with a human gate), not one click: the toggle shows the orchestration collapse; the Studio Case shows the human gate landing in Action Center and the case completing after approval.
 
 ![UiPath Integration panel — Connected status, the Direct/Maestro Case toggle set to Maestro Case, successful Maestro Case jobs, and pending human approvals](docs/images/uipath-panel.png)
 *The UiPath panel during a live run: connected, in Maestro Case mode, with real Orchestrator jobs succeeding and approvals queued.*
@@ -90,10 +92,12 @@ Default is set by `UIPATH_ORCHESTRATION_MODE` (`direct` | `maestro`) and can be 
 
 ## Human-in-the-loop approvals
 
-When **VERITAS** (the compliance agent) sees a compliance-sensitive workflow during a crisis, it **holds it for human approval** instead of letting it run. Pending approvals surface in the **Human Approvals** modal (top bar) and the **UiPath** sidebar panel; both Approve/Reject buttons call the real `/api/approvals/{id}/approve|reject` endpoints. In **Maestro Case** mode the same gate is also delivered to **UiPath Action Center**.
+When **VERITAS** (the compliance agent) sees a compliance-sensitive workflow during a crisis, it **holds it for human approval** instead of letting it run. Pending approvals surface in the **Human Approvals** modal (top bar) and the **UiPath** sidebar panel; both Approve/Reject buttons call the real `/api/approvals/{id}/approve|reject` endpoints. This is the **in-app** gate (active in both orchestration modes).
+
+Separately, the governed **Maestro Case** (BPMN, in UiPath Studio/Maestro) delivers its compliance gate to **UiPath Action Center**: when the case reaches the Compliance Gate it creates a real Action Center task, a human approves it in their inbox, and the case **completes** — the human-in-the-loop proven end-to-end on the platform. (That Case is run in Studio; the in-app toggle routes through `MaestroCity_Orchestrator`, not the Studio Case.)
 
 ![Human Approvals modal — high-risk workflows held for human decision, each showing risk level, route, priority, and requesting agent, with Approve and Reject actions](docs/images/approvals.png)
-*The Human Approvals modal — each card shows the risk level, route, and priority; Approve/Reject call real backend endpoints (and Action Center in Maestro mode).*
+*The Human Approvals modal — each card shows the risk level, route, and priority; Approve/Reject call real backend endpoints. (The governed Maestro Case delivers its gate to Action Center separately, in Studio/Maestro.)*
 
 **What gets gated:** any workflow typed `approval_request` (compliance-sensitive by definition), or any workflow whose risk exceeds `0.7`.
 
@@ -156,14 +160,14 @@ The backend is **stateful** (in-memory simulation + a WebSocket broadcast loop),
 - **Orchestrator** — folders `MaestroCity` (id `3084969`) + `Shared` (id `3042878`); Releases + Packages; `StartJobs` (OData) and job-status polling.
 - **Serverless Automation Cloud Robots** — every job runs `Strategy: ModernJobsCount`, `RuntimeType: Serverless`.
 - **LLM Gateway** — all agent reasoning (gpt-4.1-mini); no direct OpenAI/model-vendor calls anywhere.
-- **Action Center** — receives the human-in-the-loop approval task in Maestro Case mode.
+- **Action Center** — receives the human-in-the-loop approval task from the governed Maestro Case (a BPMN case authored + run in Studio/Maestro).
 
 ### Maestro Case — orchestration (Track 1 centerpiece)
 | Release | Version | Role |
 |---|---|---|
 | `MaestroCity_Orchestrator` | 1.0.0 | **Coded** orchestrator — one job fans out to all five operational coded agents, waits, and aggregates their recommendations into a single directive |
 
-When the backend is in Maestro mode it starts **one** `MaestroCity_Orchestrator` job **per crisis**, which spawns five child agent jobs (`aria`/`sentinel`/`veritas`/`echo`/`apex`) and synthesizes a coordinated response. **Verified live** — orchestrator job → 5 successful child jobs in Orchestrator → Jobs. (Supersedes the earlier `MaestroCity_PipelineTest` placeholder.) Compliance-sensitive steps gate behind an **Action Center** approval.
+When the backend is in Maestro mode it starts **one** `MaestroCity_Orchestrator` job **per crisis**, which spawns five child agent jobs (`aria`/`sentinel`/`veritas`/`echo`/`apex`) and synthesizes a coordinated response. **Verified live** — orchestrator job → 5 successful child jobs in Orchestrator → Jobs. (Supersedes the earlier `MaestroCity_PipelineTest` placeholder.) The **human-approval gate** lives in the separate governed Maestro Case (a BPMN case in Studio/Maestro that delivers to **Action Center**), not inside this orchestrator.
 
 ### Coded Agents — `uipath-langchain` / LangGraph, reasoning via the LLM Gateway
 | Coded agent (package) | Version | Role |
@@ -231,7 +235,7 @@ Open **<http://localhost:3000>** (backend health: <http://localhost:8000/api/orc
 2. **Trigger a crisis** — right panel → **Failover** tab → **Trigger Outage** on the *Cloud / Data Center* (severity *full*). Watch buildings cascade and the **Alert Feed** fill.
 3. **See real UiPath jobs** — right panel → **UiPath** tab → the **Active Jobs** list populates (`Incident_Escalation`, `Crisis_Response`, …). Cross-check the same jobs in your **Orchestrator → Jobs** view to confirm they're real.
 4. **Direct → Maestro Case** — flip the **Orchestration Mode** toggle in the UiPath panel; agent actions now route into one **`MaestroCity_Orchestrator`** job that fans out to all five coded agents (watch the five child jobs appear in **Orchestrator → Jobs**).
-5. **Human approval** — top bar → **Approvals**; approve/reject a VERITAS-gated action (in Maestro mode the task also appears in **Action Center**).
+5. **Human approval** — top bar → **Approvals**; approve/reject a VERITAS-gated action (the in-app gate). The governed Maestro Case delivers the equivalent gate to **Action Center**, run separately in Studio/Maestro.
 6. **Autonomy / staffing dials** — right panel → **Autonomy** tab → change an agent's level (e.g. SENTINEL → 3 auto-failover, VERITAS → 1 holds for approval).
 7. **Exports** — top bar → **Reports** → step through **After-Action / Runbook / Calibration / Templates** and hit **Download**.
 8. **Coding Agent (bonus)** — top bar → **Coding Agent** → **Generate Workflow** (XAML from the live crisis) and the **Debug** tab (diagnose + patch).
